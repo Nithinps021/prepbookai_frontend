@@ -4,38 +4,37 @@ import AppLayout from '@/components/layout/AppLayout.vue'
 
 const routes = [
   {
+    // Public marketing / onboarding landing page
+    path: '/',
+    name: 'Landing',
+    component: () => import('@/views/LandingView.vue'),
+    meta: { requiresAuth: false }
+  },
+  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/LoginView.vue'),
     meta: { requiresAuth: false }
   },
   {
-    path: '/signup',
-    name: 'Signup',
-    component: () => import('@/views/SignupView.vue'),
-    meta: { requiresAuth: false }
-  },
-  {
-    path: '/',
+    // Authenticated app shell. Children declare absolute-style paths so the
+    // parent only renders the layout (no index child that would clash with /).
+    path: '/app',
     component: AppLayout,
     meta: { requiresAuth: true },
     children: [
       {
-        path: '',
-        redirect: '/dashboard'
-      },
-      {
-        path: 'dashboard',
+        path: '/dashboard',
         name: 'Dashboard',
         component: () => import('@/views/DashboardView.vue')
       },
       {
-        path: 'quizzes',
+        path: '/quizzes',
         name: 'Quizzes',
         component: () => import('@/views/QuizListView.vue')
       },
       {
-        path: 'profile',
+        path: '/profile',
         name: 'Profile',
         component: () => import('@/views/ProfileView.vue')
       }
@@ -56,9 +55,9 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
-    // Catch all
+    // Catch all -> public landing page
     path: '/:pathMatch(.*)*',
-    redirect: '/dashboard'
+    redirect: '/'
   }
 ]
 
@@ -72,7 +71,8 @@ router.beforeEach((to, from, next) => {
   
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
-  } else if (!to.meta.requiresAuth && authStore.isAuthenticated && (to.path === '/login' || to.path === '/signup')) {
+  } else if (authStore.isAuthenticated && (to.name === 'Login' || to.name === 'Landing')) {
+    // Logged-in users skip the marketing/login pages and go straight to the app
     next('/dashboard')
   } else {
     next()

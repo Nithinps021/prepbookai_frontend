@@ -65,15 +65,25 @@
     </div>
 
     <!-- Pagination -->
-    <div v-if="!isLoading && pagination.totalPages > 1" class="mt-8 flex items-center justify-center gap-4">
-      <Button variant="secondary" @click="prevPage" :disabled="pagination.page === 1">
-        Previous
+    <div v-if="!isLoading && pagination.totalPages > 1" class="mt-8 flex items-center justify-center gap-2">
+      <Button variant="secondary" class="w-10 h-10 p-0 flex items-center justify-center" @click="prevPage" :disabled="pagination.page === 1">
+        <ChevronLeft class="w-5 h-5" />
       </Button>
-      <span class="text-sm font-medium text-text-muted">
-        Page {{ pagination.page }} of {{ pagination.totalPages }}
-      </span>
-      <Button variant="secondary" @click="nextPage" :disabled="pagination.page === pagination.totalPages">
-        Next
+      
+      <div class="flex items-center gap-1 mx-2">
+        <Button 
+          v-for="page in visiblePages" 
+          :key="page"
+          :variant="pagination.page === page ? 'primary' : 'secondary'"
+          class="w-10 h-10 p-0 flex items-center justify-center font-medium"
+          @click="goToPage(page)"
+        >
+          {{ page }}
+        </Button>
+      </div>
+
+      <Button variant="secondary" class="w-10 h-10 p-0 flex items-center justify-center" @click="nextPage" :disabled="pagination.page === pagination.totalPages">
+        <ChevronRight class="w-5 h-5" />
       </Button>
     </div>
 
@@ -96,7 +106,7 @@ import QuizCard from '@/components/quiz/QuizCard.vue'
 import QuizStartModal from '@/components/quiz/QuizStartModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import Button from '@/components/ui/Button.vue'
-import { Search } from 'lucide-vue-next'
+import { Search, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -108,8 +118,8 @@ const searchQuery = ref('')
 const selectedQuiz = ref(null)
 const isModalOpen = ref(false)
 
-const subjects = ['English Language', 'Mains English Language']
-const activeSubject = ref(route.query.subject || 'English Language')
+const subjects = ['English']
+const activeSubject = ref(route.query.subject || 'English')
 const pagination = ref({ page: 1, limit: 15, totalPages: 1 })
 
 // Sync URL with active subject
@@ -161,6 +171,32 @@ const prevPage = () => {
   }
 }
 
+const goToPage = (page) => {
+  if (page !== pagination.value.page) {
+    pagination.value.page = page
+    fetchQuizzes()
+  }
+}
+
+const visiblePages = computed(() => {
+  const current = pagination.value.page
+  const total = pagination.value.totalPages
+  
+  if (total <= 5) {
+    return Array.from({ length: total }, (_, i) => i + 1)
+  }
+  
+  if (current <= 3) {
+    return [1, 2, 3, 4, 5]
+  }
+  
+  if (current >= total - 2) {
+    return [total - 4, total - 3, total - 2, total - 1, total]
+  }
+  
+  return [current - 2, current - 1, current, current + 1, current + 2]
+})
+
 const filteredQuizzes = computed(() => {
   return quizzes.value.filter(quiz => {
     const matchesSubject = activeSubject.value === 'All' || quiz.subject === activeSubject.value
@@ -172,7 +208,7 @@ const filteredQuizzes = computed(() => {
 
 const resetFilters = () => {
   searchQuery.value = ''
-  activeSubject.value = 'English Language'
+  activeSubject.value = 'English'
 }
 
 const openQuizModal = (quiz) => {

@@ -1,65 +1,54 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { api } from '@/mock/api'
+import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
+import { auth, googleProvider } from '@/firebase'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
-  const token = ref(localStorage.getItem('token') || null)
-  const isAuthenticated = ref(!!token.value)
-  const isLoading = ref(false)
+  const token = ref(null)
+  const isAuthenticated = ref(false)
+  const isLoading = ref(true) // Start loading to wait for auth state
   const error = ref(null)
 
-  const login = async (email, password) => {
-    isLoading.value = true
-    error.value = null
-    try {
-      const response = await api.login(email, password)
-      token.value = response.token
-      user.value = response.user
-      isAuthenticated.value = true
-      localStorage.setItem('token', response.token)
-    } catch (err) {
-      error.value = err.message || 'Login failed'
-      throw err
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  const signup = async (name, email, password) => {
-    isLoading.value = true
-    error.value = null
-    try {
-      const response = await api.signup(name, email, password)
-      token.value = response.token
-      user.value = response.user
-      isAuthenticated.value = true
-      localStorage.setItem('token', response.token)
-    } catch (err) {
-      error.value = err.message || 'Signup failed'
-      throw err
-    } finally {
-      isLoading.value = false
-    }
-  }
-
-  const logout = () => {
-    user.value = null
-    token.value = null
-    isAuthenticated.value = false
-    localStorage.removeItem('token')
-  }
-
-  const fetchProfile = async () => {
-    if (!token.value) return
-    try {
-      const profile = await api.getUserProfile()
-      user.value = profile
-    } catch (err) {
-      console.error('Failed to fetch profile', err)
-      if (err.message === 'Unauthorized') {
-        logout()
+  // Initialize auth state listener
+  onAuthStateChanged(auth, async (currentUser) => {
+    if (currentUser) {
+      user.value = {
+        id: currentUser.uid,
+        name: currentUser.displayName,
+        email: currentUser.email,
+        photoURL: currentUser.photoURL
       }
+      token.value = await currentUser.getIdToken()
+      isAuthenticated.value = true
+    } else {
+      user.value = null
+      token.value = null
+      isAuthenticated.value = false
+    }
+    isLoading.value = false
+  })
+
+  const loginWithGoogle = async () => {
+    isLoading.value = true
+    error.value = null
+    try {
+      const result = await signInWithPopup(auth, googleProvider)
+      // State is handled by onAuthStateChanged
+    } catch (err) {
+      error.value = err.message || 'Google login failed'
+      throw err
+    } finally {
+      isLoading.value = false
+    }
+  }
+
+  const logout = async () => {
+    try {
+      await signOut(auth)
+      // State is handled by onAuthStateChanged
+    } catch (err) {
+      console.error('Logout failed', err)
     }
   }
 
@@ -69,9 +58,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isLoading,
     error,
-    login,
-    signup,
-    logout,
-    fetchProfile
+    loginWithGoogle,
+    logout
   }
 })

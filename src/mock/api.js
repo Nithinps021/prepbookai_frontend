@@ -33,6 +33,8 @@ export const api = {
       url = `/api/english-quizzes?page=${page}&limit=${limit}`;
     } else if (subject === 'Mains English Language') {
       url = `/api/mains-english-quizzes?page=${page}&limit=${limit}`;
+    } else if (subject === 'English') {
+      url = `/api/english-all-quizzes?page=${page}&limit=${limit}`;
     } else {
       // Fallback for other potential mock subjects
       const response = await fetch('/api/quizzes');
