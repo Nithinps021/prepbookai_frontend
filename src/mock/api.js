@@ -27,32 +27,47 @@ export const api = {
     return user
   },
 
-  async getQuizzes(subject = null) {
-    const response = await fetch('/api/quizzes');
+  async getQuizzes(subject = null, page = 1, limit = 15) {
+    let url = '';
+    if (subject === 'English Language') {
+      url = `/api/english-quizzes?page=${page}&limit=${limit}`;
+    } else if (subject === 'Mains English Language') {
+      url = `/api/mains-english-quizzes?page=${page}&limit=${limit}`;
+    } else {
+      // Fallback for other potential mock subjects
+      const response = await fetch('/api/quizzes');
+      if (!response.ok) {
+        throw new Error('Failed to fetch quizzes');
+      }
+      let data = await response.json();
+      if (subject && subject !== 'All') {
+        data = data.filter(q => q.subject === subject);
+      }
+      return { data, page: 1, limit: 15, total: data.length, totalPages: 1 };
+    }
+
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to fetch quizzes');
     }
-    const data = await response.json();
-    if (subject) {
-      return data.filter(q => q.subject === subject)
-    }
-    return data;
+    return await response.json();
   },
 
-  async getQuiz(id) {
-    const response = await fetch(`/api/quizzes/${id}`);
+  async getQuiz(id, subject) {
+    const response = await fetch(`/api/quizzes/${id}?subject=${encodeURIComponent(subject)}`);
     if (!response.ok) {
       throw new Error('Quiz not found');
     }
     return await response.json();
   },
 
-  async getQuestions(quizId) {
-    const response = await fetch(`/api/quizzes/${quizId}/questions`);
+  async getQuestions(quizId, subject) {
+    const response = await fetch(`/api/quizzes/${quizId}/questions?subject=${encodeURIComponent(subject)}`);
     if (!response.ok) {
       throw new Error('Failed to fetch questions');
     }
-    return await response.json();
+    const data = await response.json();
+    return data.map((q, idx) => ({ ...q, id: q.id || `q-${idx}` }));
   },
 
   async submitQuiz(quizId, answers, timeTaken) {

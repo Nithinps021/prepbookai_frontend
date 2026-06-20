@@ -91,7 +91,7 @@
             <div class="flex-1 pr-4">
               <div class="flex items-center gap-2 mb-1.5">
                 <span class="text-xs sm:text-sm font-semibold text-text-muted">Q{{ index + 1 }}</span>
-                <Badge :variant="q.difficulty" class="hidden sm:inline-flex">{{ q.difficulty }}</Badge>
+                <Badge v-if="q.difficulty" :variant="q.difficulty" class="hidden sm:inline-flex">{{ q.difficulty }}</Badge>
               </div>
               <p class="text-sm sm:text-[15px] text-text-primary font-medium line-clamp-2" :class="{ 'line-clamp-none': expandedQuestions.has(q.id) }" v-html="formatQuestion(q.question)">
               </p>
@@ -109,8 +109,8 @@
               class="p-3 rounded-lg text-sm border flex items-center justify-between"
               :class="getOptionClass(q, index, optIndex)"
             >
-              <span>{{ String.fromCharCode(65 + optIndex) }}. {{ option }}</span>
-              <span v-if="option === q.answer" class="text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded">Correct</span>
+              <span>{{ String.fromCharCode(65 + optIndex) }}. {{ option.replace(/^[A-E][).]\s*/, '') }}</span>
+              <span v-if="isOptionCorrect(option, q.answer)" class="text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded">Correct</span>
               <span v-else-if="quizStore.answers[q.id] === optIndex" class="text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded">Your Answer</span>
             </div>
             
@@ -196,14 +196,19 @@ const formatQuestion = (text) => {
   return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
 }
 
+const isOptionCorrect = (option, answer) => {
+  if (!option || !answer) return false;
+  return option.startsWith(answer + ')') || option.startsWith(answer + '.') || option === answer;
+}
+
 const isCorrect = (q, index) => {
   const ansIndex = quizStore.answers[q.id]
-  return ansIndex !== undefined && q.options[ansIndex] === q.answer
+  return ansIndex !== undefined && isOptionCorrect(q.options[ansIndex], q.answer)
 }
 
 const isWrong = (q, index) => {
   const ansIndex = quizStore.answers[q.id]
-  return ansIndex !== undefined && q.options[ansIndex] !== q.answer
+  return ansIndex !== undefined && !isOptionCorrect(q.options[ansIndex], q.answer)
 }
 
 const getReviewCardClass = (q, index) => {
@@ -214,7 +219,7 @@ const getReviewCardClass = (q, index) => {
 
 const getOptionClass = (q, index, optIndex) => {
   const isSelected = quizStore.answers[q.id] === optIndex
-  const isActuallyCorrect = q.options[optIndex] === q.answer
+  const isActuallyCorrect = isOptionCorrect(q.options[optIndex], q.answer)
   
   if (isActuallyCorrect) {
     return 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300'

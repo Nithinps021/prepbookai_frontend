@@ -1,10 +1,10 @@
 <template>
-  <div class="flex flex-col h-full animate-fade-in">
-    <div class="mb-6">
-      <div class="flex items-center justify-between mb-4">
+  <div class="flex flex-col h-full animate-fade-in min-h-0">
+    <div class="flex-none mb-4">
+      <div class="flex items-center justify-between mb-2">
         <h3 class="text-lg font-medium text-text-primary">Question {{ questionNumber }}</h3>
         <div class="flex items-center gap-2 sm:gap-3">
-          <Badge :variant="question.difficulty" class="hidden sm:inline-flex">{{ question.difficulty }}</Badge>
+          <Badge v-if="question.difficulty" :variant="question.difficulty" class="hidden sm:inline-flex">{{ question.difficulty }}</Badge>
           
           <button 
             v-if="selectedOption !== null"
@@ -29,6 +29,9 @@
           </button>
         </div>
       </div>
+    </div>
+    
+    <div class="overflow-y-auto pr-2 mb-6 min-h-0">
       <div v-if="question.direction" class="text-sm sm:text-base text-text-primary leading-relaxed whitespace-pre-wrap italic mb-4 p-3 bg-brand-50 dark:bg-brand-900/20 border-l-4 border-brand-500 rounded-r-md">
         <strong>Directions: </strong>{{ question.direction }}
       </div>
@@ -36,7 +39,7 @@
       </div>
     </div>
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8 sm:mb-0">
+    <div class="flex-none grid grid-cols-1 sm:grid-cols-2 gap-3">
       <button
         v-for="(option, index) in question.options"
         :key="index"
@@ -61,7 +64,7 @@
           <span v-else class="text-[10px] sm:text-xs font-medium text-text-muted">{{ String.fromCharCode(65 + index) }}</span>
         </div>
         <div class="flex-1 text-sm sm:text-[15px] leading-snug">
-          {{ option }}
+          {{ option.replace(/^[A-E][).]\s*/, '') }}
         </div>
       </button>
     </div>

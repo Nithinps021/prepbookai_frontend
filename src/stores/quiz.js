@@ -49,11 +49,16 @@ export const useQuizStore = defineStore('quiz', () => {
     let wrong = 0
     let unanswered = 0
 
+    const isOptionCorrect = (option, answer) => {
+      if (!option || !answer) return false;
+      return option.startsWith(answer + ')') || option.startsWith(answer + '.') || option === answer;
+    }
+
     questions.value.forEach(q => {
       const userAnswerId = answers.value[q.id]
       if (userAnswerId === undefined) {
         unanswered++
-      } else if (q.options[userAnswerId] === q.answer) {
+      } else if (isOptionCorrect(q.options[userAnswerId], q.answer)) {
         correct++
       } else {
         wrong++

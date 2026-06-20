@@ -44,8 +44,8 @@
       </div>
 
       <!-- Question Area -->
-      <main class="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 pb-12 lg:pb-16 relative z-0">
-        <div class="max-w-3xl mx-auto h-full flex flex-col">
+      <main class="flex-1 overflow-hidden p-4 sm:p-6 lg:p-10 pb-4 relative z-0 flex flex-col">
+        <div class="max-w-5xl mx-auto w-full h-full flex flex-col min-h-0">
           <QuestionView 
             v-if="currentQuestion"
             :question="currentQuestion"
@@ -54,10 +54,11 @@
             :is-marked="isMarked"
             @select="handleSelectOption"
             @toggle-mark="toggleMarkForReview"
+            class="flex-1 min-h-0 mb-6"
           />
 
           <!-- Navigation Buttons -->
-          <div class="mt-8 flex items-center justify-between border-t border-border pt-6">
+          <div class="flex-none pt-4 flex items-center justify-between border-t border-border">
             <Button 
               variant="secondary" 
               @click="prevQuestion" 
@@ -207,9 +208,10 @@ const { secondsLeft, formattedTime, timeTaken, start: startTimer, pause: pauseTi
 
 onMounted(async () => {
   const quizId = route.params.id
+  const subject = route.query.subject || 'English Language'
   try {
-    const quizData = await api.getQuiz(quizId)
-    const questionsData = await api.getQuestions(quizId)
+    const quizData = await api.getQuiz(quizId, subject)
+    const questionsData = await api.getQuestions(quizId, subject)
     
     quizStore.startQuiz(quizData, questionsData)
     

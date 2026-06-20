@@ -64,6 +64,19 @@
       <Button variant="secondary" class="mt-4" @click="resetFilters">Clear Filters</Button>
     </div>
 
+    <!-- Pagination -->
+    <div v-if="!isLoading && pagination.totalPages > 1" class="mt-8 flex items-center justify-center gap-4">
+      <Button variant="secondary" @click="prevPage" :disabled="pagination.page === 1">
+        Previous
+      </Button>
+      <span class="text-sm font-medium text-text-muted">
+        Page {{ pagination.page }} of {{ pagination.totalPages }}
+      </span>
+      <Button variant="secondary" @click="nextPage" :disabled="pagination.page === pagination.totalPages">
+        Next
+      </Button>
+    </div>
+
     <!-- Start Modal -->
     <QuizStartModal 
       :is-open="isModalOpen"
@@ -95,27 +108,34 @@ const searchQuery = ref('')
 const selectedQuiz = ref(null)
 const isModalOpen = ref(false)
 
-const subjects = ['English Language']
+const subjects = ['English Language', 'Mains English Language']
 const activeSubject = ref(route.query.subject || 'English Language')
+const pagination = ref({ page: 1, limit: 15, totalPages: 1 })
 
 // Sync URL with active subject
 watch(activeSubject, (newVal) => {
+  pagination.value.page = 1
   if (newVal === 'All') {
     router.replace({ path: '/quizzes' })
   } else {
     router.replace({ path: '/quizzes', query: { subject: newVal } })
   }
+  fetchQuizzes()
 })
 
 // Sync active subject with URL changes (e.g. back button)
 watch(() => route.query.subject, (newSubject) => {
-  activeSubject.value = newSubject || 'English Language'
+  if (newSubject && newSubject !== activeSubject.value) {
+    activeSubject.value = newSubject
+  }
 })
 
 const fetchQuizzes = async () => {
   isLoading.value = true
   try {
-    quizzes.value = await api.getQuizzes()
+    const response = await api.getQuizzes(activeSubject.value, pagination.value.page, pagination.value.limit)
+    quizzes.value = response.data
+    pagination.value.totalPages = response.totalPages
   } catch (error) {
     console.error('Failed to fetch quizzes', error)
   } finally {
@@ -126,6 +146,20 @@ const fetchQuizzes = async () => {
 onMounted(() => {
   fetchQuizzes()
 })
+
+const nextPage = () => {
+  if (pagination.value.page < pagination.value.totalPages) {
+    pagination.value.page++
+    fetchQuizzes()
+  }
+}
+
+const prevPage = () => {
+  if (pagination.value.page > 1) {
+    pagination.value.page--
+    fetchQuizzes()
+  }
+}
 
 const filteredQuizzes = computed(() => {
   return quizzes.value.filter(quiz => {
@@ -149,6 +183,6 @@ const openQuizModal = (quiz) => {
 const startQuiz = async () => {
   if (!selectedQuiz.value) return
   isModalOpen.value = false
-  router.push(`/quiz/${selectedQuiz.value.id}`)
+  router.push({ path: `/quiz/${selectedQuiz.value.id}`, query: { subject: selectedQuiz.value.subject } })
 }
 </script>
