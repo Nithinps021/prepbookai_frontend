@@ -15,11 +15,6 @@
 
     <div class="flex items-center space-x-2">
       <ThemeToggle />
-      
-      <!-- User Menu Dropdown trigger (simplified for now) -->
-      <button class="w-8 h-8 rounded-md bg-brand-100 text-brand-600 flex items-center justify-center font-bold ml-2">
-        {{ authStore.user?.name?.charAt(0) || 'U' }}
-      </button>
     </div>
   </header>
 </template>

@@ -2,10 +2,12 @@
   <div class="space-y-6 animate-fade-in">
     <!-- Header Greeting -->
     <div>
-      <h2 class="text-2xl font-bold text-text-primary">
-        Welcome back, {{ authStore.user?.name?.split(' ')[0] || 'Student' }}! 👋
+      <h2 class="text-2xl font-bold text-text-primary flex items-center gap-3">
+        Welcome back, {{ authStore.user?.name || 'Student' }}! 👋
       </h2>
-      <p class="mt-1 text-sm text-text-muted">Here's an overview of your progress today.</p>
+      <p class="mt-1 text-sm text-text-muted">
+        Signed in as <span class="font-medium text-text-primary">{{ authStore.user?.email }}</span>
+      </p>
     </div>
 
     <!-- Stats Grid -->
