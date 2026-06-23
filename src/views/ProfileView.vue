@@ -21,7 +21,7 @@
           <Badge variant="brand" class="mt-3">Free Plan</Badge>
           
           <div class="mt-6 pt-6 border-t border-border">
-            <Button variant="danger" class="w-full justify-center" @click="handleLogout">
+            <Button variant="danger" class="w-full justify-center" @click="showLogoutModal = true">
               <LogOut class="w-4 h-4 mr-2" />
               Sign Out
             </Button>
@@ -114,6 +114,33 @@
 
       </div>
     </div>
+
+    <!-- Custom Logout Modal -->
+    <Teleport to="body">
+      <div v-if="showLogoutModal" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-fade-in p-4">
+        <div class="bg-surface border border-border rounded-2xl p-6 shadow-2xl w-full max-w-sm mx-auto transform transition-all text-left">
+          <div class="w-12 h-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+            <LogOut class="w-6 h-6 text-red-600 dark:text-red-500" />
+          </div>
+          <h3 class="text-xl font-bold text-text-primary mb-2">Sign Out</h3>
+          <p class="text-sm text-text-muted mb-6">Are you sure you want to sign out of your account?</p>
+          <div class="flex justify-end gap-3">
+            <button 
+              @click="showLogoutModal = false"
+              class="px-4 py-2 rounded-xl text-sm font-semibold text-text-muted hover:text-text-primary hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            >
+              Cancel
+            </button>
+            <button 
+              @click="confirmLogout"
+              class="px-4 py-2 rounded-xl text-sm font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors shadow-sm"
+            >
+              Sign Out
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -153,8 +180,11 @@ const saveProfile = async () => {
   }, 800)
 }
 
-const handleLogout = () => {
-  authStore.logout()
-  router.push('/login')
+const showLogoutModal = ref(false)
+
+const confirmLogout = async () => {
+  await authStore.logout()
+  showLogoutModal.value = false
+  router.push('/')
 }
 </script>
