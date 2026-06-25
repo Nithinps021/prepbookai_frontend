@@ -118,8 +118,8 @@ const searchQuery = ref('')
 const selectedQuiz = ref(null)
 const isModalOpen = ref(false)
 
-const subjects = ['English']
-const activeSubject = ref(route.query.subject || 'English')
+const subjects = ['All', 'English Language', 'Mains English Language']
+const activeSubject = ref(route.query.subject || 'English Language')
 const pagination = ref({ page: 1, limit: 15, totalPages: 1 })
 
 // Sync URL with active subject
@@ -208,7 +208,7 @@ const filteredQuizzes = computed(() => {
 
 const resetFilters = () => {
   searchQuery.value = ''
-  activeSubject.value = 'English'
+  activeSubject.value = 'English Language'
 }
 
 const openQuizModal = (quiz) => {

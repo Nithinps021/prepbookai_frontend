@@ -1,6 +1,7 @@
 import { questions } from './questions'
 import { quizzes } from './quizzes'
 import { user } from './user'
+import { fetchWithAuth } from './apiClient'
 
 // Helper to simulate network delay
 const delay = (ms = 500) => new Promise(resolve => setTimeout(resolve, ms))
@@ -28,26 +29,9 @@ export const api = {
   },
 
   async getQuizzes(subject = null, page = 1, limit = 15) {
-    let url = '';
-    if (subject === 'English Language') {
-      url = `/api/english-quizzes?page=${page}&limit=${limit}`;
-    } else if (subject === 'Mains English Language') {
-      url = `/api/mains-english-quizzes?page=${page}&limit=${limit}`;
-    } else if (subject === 'English') {
-      url = `/api/english-all-quizzes?page=${page}&limit=${limit}`;
-    } else {
-      // Fallback for other potential mock subjects
-      const response = await fetch('/api/quizzes');
-      if (!response.ok) {
-        throw new Error('Failed to fetch quizzes');
-      }
-      let data = await response.json();
-      if (subject && subject !== 'All') {
-        data = data.filter(q => q.subject === subject);
-      }
-      return { data, page: 1, limit: 15, total: data.length, totalPages: 1 };
-    }
-
+    let url = `/api/english-quizzes?page=${page}&limit=${limit}`; // For now all quizzes are english quizzes in the backend
+    
+    // We are leaving this public as per the plan, but we can also use fetchWithAuth if preferred. Let's use standard fetch here to match backend.
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to fetch quizzes');
@@ -56,7 +40,7 @@ export const api = {
   },
 
   async getQuiz(id, subject) {
-    const response = await fetch(`/api/quizzes/${id}?subject=${encodeURIComponent(subject)}`);
+    const response = await fetch(`/api/quizzes/${id}`);
     if (!response.ok) {
       throw new Error('Quiz not found');
     }
@@ -64,7 +48,7 @@ export const api = {
   },
 
   async getQuestions(quizId, subject) {
-    const response = await fetch(`/api/quizzes/${quizId}/questions?subject=${encodeURIComponent(subject)}`);
+    const response = await fetchWithAuth(`/api/quizzes/${quizId}/questions`);
     if (!response.ok) {
       throw new Error('Failed to fetch questions');
     }
