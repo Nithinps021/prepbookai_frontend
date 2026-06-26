@@ -29,10 +29,11 @@ export const api = {
   },
 
   async getQuizzes(subject = null, page = 1, limit = 15) {
-    let url = `/api/english-quizzes?page=${page}&limit=${limit}`; // For now all quizzes are english quizzes in the backend
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+    let url = `${baseUrl}/english/quizzes?page=${page}&limit=${limit}`; // For now all quizzes are english quizzes in the backend
     
     // We are leaving this public as per the plan, but we can also use fetchWithAuth if preferred. Let's use standard fetch here to match backend.
-    const response = await fetch(url);
+    const response = await fetchWithAuth(url);
     if (!response.ok) {
       throw new Error('Failed to fetch quizzes');
     }
@@ -40,7 +41,8 @@ export const api = {
   },
 
   async getQuiz(id, subject) {
-    const response = await fetch(`/api/quizzes/${id}`);
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+    const response = await fetchWithAuth(`${baseUrl}/english/quizzes/${id}`);
     if (!response.ok) {
       throw new Error('Quiz not found');
     }
@@ -48,7 +50,8 @@ export const api = {
   },
 
   async getQuestions(quizId, subject) {
-    const response = await fetchWithAuth(`/api/quizzes/${quizId}/questions`);
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || '/api';
+    const response = await fetchWithAuth(`${baseUrl}/english/quizzes/${quizId}/questions`);
     if (!response.ok) {
       throw new Error('Failed to fetch questions');
     }

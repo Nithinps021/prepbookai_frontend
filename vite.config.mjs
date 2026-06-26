@@ -9,7 +9,7 @@ import { cloudflare } from "@cloudflare/vite-plugin";
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   return {
-  plugins: [vue(), tailwindcss(), cloudflare()],
+  plugins: [vue(), tailwindcss()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))

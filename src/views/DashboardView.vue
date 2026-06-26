@@ -49,7 +49,7 @@
       <div class="lg:col-span-2 bg-surface border border-border rounded-xl p-5 shadow-soft">
         <h3 class="font-semibold text-text-primary mb-4">Subject Mastery</h3>
         <div class="space-y-5">
-          <ProgressBar label="English Language" :percentage="85" colorClass="bg-green-500" />
+          <ProgressBar label="English" :percentage="85" colorClass="bg-green-500" />
         </div>
       </div>
 
@@ -57,7 +57,7 @@
       <div class="bg-surface border border-border rounded-xl p-5 shadow-soft flex flex-col">
         <h3 class="font-semibold text-text-primary mb-4">Quick Start</h3>
         <div class="space-y-3 flex-1">
-          <router-link to="/quizzes?subject=English+Language" class="flex items-center p-3 rounded-lg border border-border hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all group">
+          <router-link to="/quizzes?subject=English" class="flex items-center p-3 rounded-lg border border-border hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all group">
             <BookOpen class="w-5 h-5 text-text-muted group-hover:text-brand-500 mr-3" />
             <span class="font-medium text-text-primary text-sm group-hover:text-brand-600 transition-colors">English Test</span>
             <ChevronRight class="w-4 h-4 ml-auto text-text-muted group-hover:text-brand-500" />

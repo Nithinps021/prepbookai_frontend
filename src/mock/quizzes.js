@@ -2,7 +2,7 @@ export const quizzes = [
   {
     id: 'quiz1',
     title: 'English Language Grammar Quiz',
-    subject: 'English Language',
+    subject: 'English',
     topic: 'Grammar & Vocab',
     questionCount: 3,
     duration: 600,
