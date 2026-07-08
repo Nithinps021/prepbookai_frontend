@@ -46,16 +46,24 @@ const getButtonClass = (index) => {
   const isAnswered = props.answers[questionId] !== undefined
   const isMarked = props.markedForReview.has(questionId)
 
-  let baseClass = ''
+  let baseClass = 'relative '
 
   if (isCurrent) {
-    baseClass = 'ring-2 ring-brand-500 ring-offset-2 ring-offset-background border-brand-500 bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 relative'
+    baseClass += 'ring-2 ring-brand-500 ring-offset-2 ring-offset-background bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 '
   } else if (isAnswered) {
-    baseClass = 'bg-brand-500 border-brand-500 text-white relative'
+    baseClass += 'bg-brand-500 text-white '
   } else if (isMarked) {
-    baseClass = 'bg-amber-100 dark:bg-amber-900/30 border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-400 relative'
+    baseClass += 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-400 '
   } else {
-    baseClass = 'bg-surface border-border text-text-primary hover:border-text-muted hover:bg-black/5 dark:hover:bg-white/5 relative'
+    baseClass += 'bg-surface text-text-primary hover:bg-black/5 dark:hover:bg-white/5 '
+  }
+
+  if (isMarked) {
+    baseClass += 'border-2 border-amber-500 dark:border-amber-400 '
+  } else if (isCurrent || isAnswered) {
+    baseClass += 'border border-brand-500 '
+  } else {
+    baseClass += 'border border-border hover:border-text-muted '
   }
 
   return baseClass

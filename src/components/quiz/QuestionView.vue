@@ -31,42 +31,54 @@
       </div>
     </div>
     
-    <div class="overflow-y-auto pr-2 mb-6 min-h-0">
-      <div v-if="question.direction" class="text-sm sm:text-base text-text-primary leading-relaxed whitespace-pre-wrap italic mb-4 p-3 bg-brand-50 dark:bg-brand-900/20 border-l-4 border-brand-500 rounded-r-md">
-        <strong>Directions: </strong>{{ question.direction }}
+    <div class="flex-1 flex flex-col lg:flex-row gap-6 lg:gap-8 min-h-0">
+      <!-- Left Side: Passage and Direction -->
+      <div class="flex-1 overflow-y-auto pr-2 lg:pr-8 min-h-0 lg:border-r border-border">
+        <div v-if="question.direction" class="text-sm sm:text-base text-text-primary leading-relaxed whitespace-pre-wrap italic mb-4 p-3 bg-brand-50 dark:bg-brand-900/20 border-l-4 border-brand-500 rounded-r-md">
+          <strong>Directions: </strong>{{ question.direction }}
+        </div>
+        
+        <!-- If it has a passage, display it here -->
+        <div v-if="formattedPassage" class="text-sm sm:text-base text-text-primary leading-relaxed whitespace-pre-wrap" v-html="formattedPassage">
+        </div>
       </div>
-      <div class="text-sm sm:text-base text-text-primary leading-relaxed whitespace-pre-wrap" v-html="formattedQuestion">
-      </div>
-    </div>
 
-    <div class="flex-none grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <button
-        v-for="(option, index) in question.options"
-        :key="index"
-        @click="selectOption(index)"
-        :class="[
-          'w-full text-left p-3 sm:p-4 rounded-xl border transition-all duration-200 flex items-start group relative overflow-hidden',
-          selectedOption === index 
-            ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 shadow-sm' 
-            : 'border-border bg-surface text-text-primary hover:border-text-muted hover:bg-black/5 dark:hover:bg-white/5'
-        ]"
-      >
-        <!-- Selection indicator -->
-        <div 
-          :class="[
-            'w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center shrink-0 mr-3 mt-0.5 transition-colors',
-            selectedOption === index 
-              ? 'border-brand-500 bg-brand-500 text-white' 
-              : 'border-border group-hover:border-text-muted'
-          ]"
-        >
-          <Check v-if="selectedOption === index" class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-          <span v-else class="text-[10px] sm:text-xs font-medium text-text-muted">{{ String.fromCharCode(65 + index) }}</span>
+      <!-- Right Side: Question & Options -->
+      <div class="flex-1 overflow-y-auto pr-2 lg:pl-4 min-h-0 flex flex-col">
+        <!-- Always display the specific question text above the options here -->
+        <div class="text-base sm:text-lg text-text-primary font-semibold mb-8 leading-relaxed whitespace-pre-wrap" v-html="formattedQuestion">
         </div>
-        <div class="flex-1 text-sm sm:text-[15px] leading-snug">
-          {{ option.replace(/^[A-E][).]\s*/, '') }}
+
+        <div class="grid grid-cols-1 gap-3">
+          <button
+            v-for="(option, index) in question.options"
+            :key="index"
+            @click="selectOption(index)"
+            :class="[
+              'w-full text-left p-3 sm:p-4 rounded-xl border transition-all duration-200 flex items-start group relative overflow-hidden',
+              selectedOption === index 
+                ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 shadow-sm' 
+                : 'border-border bg-surface text-text-primary hover:border-text-muted hover:bg-black/5 dark:hover:bg-white/5'
+            ]"
+          >
+            <!-- Selection indicator -->
+            <div 
+              :class="[
+                'w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center shrink-0 mr-3 mt-0.5 transition-colors',
+                selectedOption === index 
+                  ? 'border-brand-500 bg-brand-500 text-white' 
+                  : 'border-border group-hover:border-text-muted'
+              ]"
+            >
+              <Check v-if="selectedOption === index" class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <span v-else class="text-[10px] sm:text-xs font-medium text-text-muted">{{ String.fromCharCode(65 + index) }}</span>
+            </div>
+            <div class="flex-1 text-sm sm:text-[15px] leading-snug">
+              {{ option.replace(/^[A-E][).]\s*/, '') }}
+            </div>
+          </button>
         </div>
-      </button>
+      </div>
     </div>
   </div>
 </template>
@@ -105,9 +117,15 @@ const selectOption = (index) => {
   }
 }
 
+const formattedPassage = computed(() => {
+  if (!props.question.passage) return ''
+  return props.question.passage.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+})
+
 const formattedQuestion = computed(() => {
-  if (!props.question.question) return ''
+  const qText = props.question.displayQuestion || props.question.question
+  if (!qText) return ''
   // Convert markdown bold (**text**) to HTML <b>text</b>
-  return props.question.question.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+  return qText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
 })
 </script>
