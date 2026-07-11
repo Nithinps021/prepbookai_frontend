@@ -46,7 +46,7 @@
       <!-- Right Side: Question & Options -->
       <div class="flex-1 overflow-y-auto pr-2 lg:pl-4 min-h-0 flex flex-col">
         <!-- Always display the specific question text above the options here -->
-        <div class="text-base sm:text-lg text-text-primary font-semibold mb-8 leading-relaxed whitespace-pre-wrap" v-html="formattedQuestion">
+        <div class="text-base sm:text-lg text-text-primary mb-8 leading-relaxed whitespace-pre-wrap" v-html="formattedQuestion">
         </div>
 
         <div class="grid grid-cols-1 gap-3">
@@ -123,9 +123,64 @@ const formattedPassage = computed(() => {
 })
 
 const formattedQuestion = computed(() => {
-  const qText = props.question.displayQuestion || props.question.question
+  let qText = props.question.displayQuestion || props.question.question
   if (!qText) return ''
-  // Convert markdown bold (**text**) to HTML <b>text</b>
+  
+  // Parse for column matching question format
+  if (qText.includes('||') && qText.includes('Column')) {
+    const parts = qText.split('||').map(p => p.trim());
+    if (parts.length === 2) {
+      const parseColumn = (text) => {
+        const headerMatch = text.match(/^(Column\s+[I12]+:?)/i);
+        const header = headerMatch ? headerMatch[1].replace(':', '').trim() : '';
+        let content = text;
+        if (headerMatch) content = text.substring(headerMatch[0].length).trim();
+        
+        const items = content.split(/(?=\b(?:[ivx]+|[A-Z])\))/g).map(s => s.trim()).filter(Boolean);
+        return { header, items };
+      };
+
+      const formatItem = (item) => {
+        if (!item) return '';
+        let match = item.match(/^([A-Zivx]+\))\s*(.*)/i);
+        let text = item;
+        if (match) {
+          let letter = match[1];
+          let rest = match[2];
+          text = `<span class="font-medium mr-1">${letter}</span><span>${rest}</span>`;
+        }
+        return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+      };
+
+      const col1 = parseColumn(parts[0]);
+      const col2 = parseColumn(parts[1]);
+
+      let html = `<div class="overflow-x-auto w-full mb-4 mt-2 max-w-3xl">`;
+      html += `<table class="w-full border-collapse border border-border text-xs sm:text-sm lg:text-base">`;
+      if (col1.header || col2.header) {
+        html += `<thead><tr class="bg-surface-50 dark:bg-surface-900">`;
+        html += `<th class="border border-border px-3 py-2 font-semibold text-left">${col1.header}</th>`;
+        html += `<th class="border border-border px-3 py-2 font-semibold text-left">${col2.header}</th>`;
+        html += `</tr></thead>`;
+      }
+
+      html += `<tbody>`;
+      const maxLen = Math.max(col1.items.length, col2.items.length);
+      for (let i = 0; i < maxLen; i++) {
+        const item1 = formatItem(col1.items[i]);
+        const item2 = formatItem(col2.items[i]);
+        html += `<tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">`;
+        html += `<td class="border border-border px-2 sm:px-3 py-1 leading-tight align-top text-text-primary">${item1}</td>`;
+        html += `<td class="border border-border px-2 sm:px-3 py-1 leading-tight align-top text-text-primary">${item2}</td>`;
+        html += `</tr>`;
+      }
+      html += `</tbody></table></div>`;
+      
+      return html;
+    }
+  }
+
+  // Default behavior: Convert markdown bold (**text**) to HTML <b>text</b>
   return qText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
 })
 </script>
