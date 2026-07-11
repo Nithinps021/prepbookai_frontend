@@ -195,65 +195,7 @@ const isSubmitting = ref(false)
 const isMobileGridOpen = ref(false)
 
 const currentQuestion = computed(() => {
-  const q = quizStore.questions[quizStore.currentQuestionIndex]
-  if (!q) return null
-
-  // Create a copy to enrich
-  const enrichedQ = { ...q }
-
-  if (q.topic_block === 'Reading Comprehension' || q.topic === 'Reading Comprehension') {
-    // Find the first question in this reading comprehension block
-    let firstRCIndex = quizStore.currentQuestionIndex
-    while (
-      firstRCIndex > 0 && 
-      (quizStore.questions[firstRCIndex - 1].topic_block === q.topic_block || 
-       quizStore.questions[firstRCIndex - 1].topic === q.topic)
-    ) {
-      firstRCIndex--
-    }
-    
-    const firstRCQ = quizStore.questions[firstRCIndex]
-    
-    let passage = ''
-    let extractedQuestion = q.question
-
-    // Split by paragraph separation if it exists
-    const parts = firstRCQ.question.split(/\n\s*\n/)
-    if (parts.length > 1) {
-      passage = parts.slice(0, -1).join('\n\n')
-      if (firstRCIndex === quizStore.currentQuestionIndex) {
-        extractedQuestion = parts[parts.length - 1]
-      }
-    } else {
-      // Fallback: extract the last sentence from firstRCQ.question
-      const matches = firstRCQ.question.match(/(.*?[.?!])\s+([^.?!]+[.?!]?)$/)
-      if (matches) {
-        passage = matches[1]
-        if (firstRCIndex === quizStore.currentQuestionIndex) {
-          extractedQuestion = matches[2]
-        }
-      }
-    }
-    
-    // For subsequent passage questions, split by comma and take the second part
-    if (firstRCIndex !== quizStore.currentQuestionIndex) {
-      const qParts = extractedQuestion.split(',')
-      if (qParts.length > 1) {
-        let secondPart = qParts.slice(1).join(',').trim()
-        if (secondPart.length > 0) {
-          secondPart = secondPart.charAt(0).toUpperCase() + secondPart.slice(1)
-        }
-        extractedQuestion = secondPart
-      }
-    }
-    
-    enrichedQ.passage = passage
-    enrichedQ.displayQuestion = extractedQuestion
-  } else {
-    enrichedQ.displayQuestion = q.question
-  }
-
-  return enrichedQ
+  return quizStore.questions[quizStore.currentQuestionIndex] || null
 })
 
 const isMarked = computed(() => {

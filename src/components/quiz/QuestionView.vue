@@ -119,7 +119,8 @@ const selectOption = (index) => {
 
 const formattedPassage = computed(() => {
   if (!props.question.passage) return ''
-  return props.question.passage.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+  let html = props.question.passage.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+  return html.replace(/\n/g, '<br/>')
 })
 
 const formattedQuestion = computed(() => {
@@ -181,6 +182,7 @@ const formattedQuestion = computed(() => {
   }
 
   // Default behavior: Convert markdown bold (**text**) to HTML <b>text</b>
-  return qText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+  let html = qText.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+  return html.replace(/\n/g, '<br/>')
 })
 </script>
