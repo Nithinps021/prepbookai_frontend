@@ -27,7 +27,7 @@
 
       <div class="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-3 rounded-lg text-xs flex items-start mt-4">
         <Info class="w-4 h-4 mr-2 shrink-0 mt-0.5" />
-        <p>Ensure you have a stable internet connection. Once started, the timer cannot be paused.</p>
+        <p>Ensure you have a stable internet connection. You can pause the exam at any time using the pause button next to the timer.</p>
       </div>
     </div>
     

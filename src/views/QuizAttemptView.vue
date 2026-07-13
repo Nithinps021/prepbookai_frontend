@@ -13,10 +13,21 @@
       
       <div class="flex items-center gap-3 sm:gap-6 shrink-0 ml-4">
         <ThemeToggle class="hidden sm:flex" />
-        <Timer 
-          :seconds-left="secondsLeft" 
-          :formatted-time="formattedTime" 
-        />
+        <div class="flex items-center gap-2">
+          <Timer 
+            :seconds-left="secondsLeft" 
+            :formatted-time="formattedTime" 
+          />
+          <Button 
+            variant="secondary" 
+            size="sm" 
+            @click="togglePause"
+            class="flex items-center gap-1.5"
+          >
+            <component :is="isRunning ? Pause : Play" class="w-4 h-4 text-brand-600 dark:text-brand-400" />
+            <span class="hidden sm:inline">{{ isRunning ? 'Pause' : 'Resume' }}</span>
+          </Button>
+        </div>
         <Button variant="primary" size="sm" @click="showSubmitModal = true">
           Submit
         </Button>
@@ -120,6 +131,41 @@
         </div>
       </aside>
 
+      <!-- Pause Overlay -->
+      <div 
+        v-if="!isRunning && !showSubmitModal && !showExitModal && !isSubmitting"
+        class="absolute inset-0 z-50 bg-background/80 backdrop-blur-md flex flex-col items-center justify-center p-6"
+      >
+        <div class="bg-surface max-w-md w-full rounded-2xl border border-border p-6 shadow-xl text-center space-y-6">
+          <div class="mx-auto w-16 h-16 bg-brand-50 dark:bg-brand-900/20 rounded-full flex items-center justify-center text-brand-600 dark:text-brand-400 animate-pulse">
+            <Pause class="w-8 h-8" />
+          </div>
+          
+          <div class="space-y-2">
+            <h2 class="text-xl font-bold text-text-primary">Exam Paused</h2>
+            <p class="text-sm text-text-muted">Take a breath. Your progress is saved. The timer will resume when you continue.</p>
+          </div>
+          
+          <div class="bg-black/5 dark:bg-white/5 rounded-xl p-4 border border-border">
+            <div class="grid grid-cols-2 divide-x divide-border">
+              <div class="text-center">
+                <div class="text-xl font-bold text-brand-600">{{ Object.keys(quizStore.answers).length }} / {{ quizStore.questions.length }}</div>
+                <div class="text-xs text-text-muted mt-1 uppercase tracking-wider font-semibold">Answered</div>
+              </div>
+              <div class="text-center">
+                <div class="text-xl font-bold text-text-primary">{{ formattedTime }}</div>
+                <div class="text-xs text-text-muted mt-1 uppercase tracking-wider font-semibold">Time Left</div>
+              </div>
+            </div>
+          </div>
+
+          <Button variant="primary" class="w-full py-2.5 flex items-center justify-center gap-2" @click="startTimer">
+            <Play class="w-4 h-4" />
+            Resume Exam
+          </Button>
+        </div>
+      </div>
+
     </div>
 
     <!-- Submit Confirmation Modal -->
@@ -182,7 +228,7 @@ import QuestionGrid from '@/components/quiz/QuestionGrid.vue'
 import ThemeToggle from '@/components/ui/ThemeToggle.vue'
 import Button from '@/components/ui/Button.vue'
 import Modal from '@/components/ui/Modal.vue'
-import { ArrowLeft, ChevronLeft, ChevronRight, Bookmark, LayoutGrid, X, Clock } from 'lucide-vue-next'
+import { ArrowLeft, ChevronLeft, ChevronRight, Bookmark, LayoutGrid, X, Clock, Play, Pause } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -203,11 +249,19 @@ const isMarked = computed(() => {
   return quizStore.markedForReview.has(currentQuestion.value.id)
 })
 
-const { secondsLeft, formattedTime, timeTaken, start: startTimer, pause: pauseTimer, reset: resetTimer } = useTimer(0, () => {
+const { secondsLeft, formattedTime, isRunning, timeTaken, start: startTimer, pause: pauseTimer, reset: resetTimer } = useTimer(0, () => {
   // Auto submit when time is up
   showSubmitModal.value = false
   confirmSubmit()
 })
+
+const togglePause = () => {
+  if (isRunning.value) {
+    pauseTimer()
+  } else {
+    startTimer()
+  }
+}
 
 onMounted(async () => {
   const quizId = route.params.id
