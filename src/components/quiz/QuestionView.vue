@@ -128,57 +128,76 @@ const formattedQuestion = computed(() => {
   if (!qText) return ''
   
   // Parse for column matching question format
+  let colMatching = false
+  let parts = []
+  
   if (qText.includes('||') && qText.includes('Column')) {
-    const parts = qText.split('||').map(p => p.trim());
+    parts = qText.split('||').map(p => p.trim());
     if (parts.length === 2) {
-      const parseColumn = (text) => {
-        const headerMatch = text.match(/^(Column\s+[I12]+:?)/i);
-        const header = headerMatch ? headerMatch[1].replace(':', '').trim() : '';
-        let content = text;
-        if (headerMatch) content = text.substring(headerMatch[0].length).trim();
-        
-        const items = content.split(/(?=\b(?:[ivx]+|[A-Z])\))/g).map(s => s.trim()).filter(Boolean);
-        return { header, items };
-      };
-
-      const formatItem = (item) => {
-        if (!item) return '';
-        let match = item.match(/^([A-Zivx]+\))\s*(.*)/i);
-        let text = item;
-        if (match) {
-          let letter = match[1];
-          let rest = match[2];
-          text = `<span class="font-medium mr-1">${letter}</span><span>${rest}</span>`;
-        }
-        return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-      };
-
-      const col1 = parseColumn(parts[0]);
-      const col2 = parseColumn(parts[1]);
-
-      let html = `<div class="overflow-x-auto w-full mb-4 mt-2 max-w-3xl">`;
-      html += `<table class="w-full border-collapse border border-border text-xs sm:text-sm lg:text-base">`;
-      if (col1.header || col2.header) {
-        html += `<thead><tr class="bg-surface-50 dark:bg-surface-900">`;
-        html += `<th class="border border-border px-3 py-2 font-semibold text-left">${col1.header}</th>`;
-        html += `<th class="border border-border px-3 py-2 font-semibold text-left">${col2.header}</th>`;
-        html += `</tr></thead>`;
-      }
-
-      html += `<tbody>`;
-      const maxLen = Math.max(col1.items.length, col2.items.length);
-      for (let i = 0; i < maxLen; i++) {
-        const item1 = formatItem(col1.items[i]);
-        const item2 = formatItem(col2.items[i]);
-        html += `<tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">`;
-        html += `<td class="border border-border px-2 sm:px-3 py-1 leading-tight align-top text-text-primary">${item1}</td>`;
-        html += `<td class="border border-border px-2 sm:px-3 py-1 leading-tight align-top text-text-primary">${item2}</td>`;
-        html += `</tr>`;
-      }
-      html += `</tbody></table></div>`;
-      
-      return html;
+      colMatching = true
     }
+  } else if (qText.includes('Column I') && qText.includes('Column II')) {
+    const col2Idx = qText.indexOf('Column II');
+    if (col2Idx !== -1) {
+      parts = [
+        qText.substring(0, col2Idx).trim(),
+        qText.substring(col2Idx).trim()
+      ]
+      colMatching = true
+    }
+  }
+
+  if (colMatching && parts.length === 2) {
+    const parseColumn = (text) => {
+      const headerMatch = text.match(/^(Column\s+[I12Vv]+:?)/i);
+      const header = headerMatch ? headerMatch[1].replace(':', '').trim() : '';
+      
+      const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
+      const items = lines.filter(line => {
+        if (line.toLowerCase().startsWith('column')) return false;
+        return true;
+      });
+      return { header, items };
+    };
+
+    const formatItem = (item) => {
+      if (!item) return '';
+      let match = item.match(/^\(?([A-Zivx]+)\)?\s*(.*)/i);
+      let text = item;
+      if (match) {
+        let letter = match[1];
+        let rest = match[2];
+        let prefix = item.startsWith('(') ? `(${letter})` : `${letter})`;
+        text = `<span class="font-medium mr-1">${prefix}</span><span>${rest}</span>`;
+      }
+      return text.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+    };
+
+    const col1 = parseColumn(parts[0]);
+    const col2 = parseColumn(parts[1]);
+
+    let html = `<div class="overflow-x-auto w-full mb-4 mt-2 max-w-3xl">`;
+    html += `<table class="w-full border-collapse border border-border text-xs sm:text-sm lg:text-base">`;
+    if (col1.header || col2.header) {
+      html += `<thead><tr class="bg-surface-50 dark:bg-surface-900">`;
+      html += `<th class="border border-border px-3 py-2 font-semibold text-left">${col1.header}</th>`;
+      html += `<th class="border border-border px-3 py-2 font-semibold text-left">${col2.header}</th>`;
+      html += `</tr></thead>`;
+    }
+
+    html += `<tbody>`;
+    const maxLen = Math.max(col1.items.length, col2.items.length);
+    for (let i = 0; i < maxLen; i++) {
+      const item1 = formatItem(col1.items[i]);
+      const item2 = formatItem(col2.items[i]);
+      html += `<tr class="hover:bg-black/5 dark:hover:bg-white/5 transition-colors">`;
+      html += `<td class="border border-border px-2 sm:px-3 py-1 leading-tight align-top text-text-primary">${item1}</td>`;
+      html += `<td class="border border-border px-2 sm:px-3 py-1 leading-tight align-top text-text-primary">${item2}</td>`;
+      html += `</tr>`;
+    }
+    html += `</tbody></table></div>`;
+    
+    return html;
   }
 
   // Default behavior: Convert markdown bold (**text**) to HTML <b>text</b>
