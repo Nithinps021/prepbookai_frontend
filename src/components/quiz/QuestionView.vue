@@ -149,14 +149,25 @@ const formattedQuestion = computed(() => {
 
   if (colMatching && parts.length === 2) {
     const parseColumn = (text) => {
-      const headerMatch = text.match(/^(Column\s+[I12Vv]+:?)/i);
-      const header = headerMatch ? headerMatch[1].replace(':', '').trim() : '';
+      let header = '';
+      const headerMatch = text.match(/(Column\s+[I12Vv]+:?)/i);
+      if (headerMatch) {
+         header = headerMatch[1].replace(':', '').trim();
+      }
       
-      const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
-      const items = lines.filter(line => {
-        if (line.toLowerCase().startsWith('column')) return false;
-        return true;
-      });
+      const items = [];
+      const regex = /(\([A-Z]\)|\([ivxIVX]+\)|[A-Z]\.|[ivxIVX]+\.)\s*(.*?)(?=\s*(?:\([A-Z]\)|\([ivxIVX]+\)|[A-Z]\.|[ivxIVX]+\.)\s*|$)/gs;
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+         items.push(match[1] + ' ' + match[2].trim());
+      }
+      
+      if (items.length === 0) {
+         // Fallback if no bullets found, split by newline
+         const lines = text.split('\n').map(s => s.trim()).filter(Boolean);
+         items.push(...lines.filter(line => !line.toLowerCase().startsWith('column')));
+      }
+
       return { header, items };
     };
 

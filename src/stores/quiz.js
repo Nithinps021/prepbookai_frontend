@@ -27,9 +27,10 @@ export const useQuizStore = defineStore('quiz', () => {
       const isSentenceRearrangement = topicLower.includes('rearrangement') || subTopicLower.includes('rearrangement');
       const isOddSentenceOut = topicLower.includes('odd sentence') || subTopicLower.includes('odd sentence');
       const isParaCompletion = topicLower.includes('para completion') || subTopicLower.includes('para completion');
+      const isClozeTest = topicLower.includes('cloze') || subTopicLower.includes('cloze');
 
-      // ── Para Jumble / Sentence Rearrangement / Odd Sentence Out / Para Completion: Prepend sentences ──
-      if (isParaJumble || isSentenceRearrangement || isOddSentenceOut || isParaCompletion) {
+      // ── Para Jumble / Sentence Rearrangement / Odd Sentence Out / Para Completion / Cloze Test: Prepend sentences ──
+      if (isParaJumble || isSentenceRearrangement || isOddSentenceOut || isParaCompletion || isClozeTest) {
         let qText = (qData.question || '').trim();
         
         // Determine if this is the start of a block
@@ -72,11 +73,36 @@ export const useQuizStore = defineStore('quiz', () => {
         savedSubTopic = null;
       }
 
+      // ── Column Matching: Remove first sentence if it's an instruction ──
+      const isColumnMatching = topicLower.includes('column') || subTopicLower.includes('column');
+      if (isColumnMatching && qData.question) {
+        let qText = qData.question.trim();
+        const lowerText = qText.toLowerCase();
+        
+        // If the question doesn't start directly with "Column I", it usually has an instruction sentence
+        if (!lowerText.startsWith('column i') && !lowerText.startsWith('column 1')) {
+          const firstPeriodIdx = qText.indexOf('.');
+          // Find the actual start of the column data, which usually has a colon or newline
+          const actualCol1Idx = qText.indexOf('Column I:');
+          
+          if (firstPeriodIdx !== -1) {
+            // If we found 'Column I:', we can just strip everything before it
+            if (actualCol1Idx !== -1) {
+              qData.question = qText.substring(actualCol1Idx).trim();
+            } 
+            // Fallback: just remove the first sentence if it seems like an instruction
+            else {
+              qData.question = qText.substring(firstPeriodIdx + 1).trim();
+            }
+          }
+        }
+      }
+
       // ── Now apply the standard passage/displayQuestion splitting ──
       const isPassageQ = qData.topic_block === 'Reading Comprehension' ||
                          topicLower.includes('reading comprehension') ||
                          subTopicLower.includes('passage base') ||
-                         isParaJumble || isSentenceRearrangement || isOddSentenceOut || isParaCompletion;
+                         isParaJumble || isSentenceRearrangement || isOddSentenceOut || isParaCompletion || isClozeTest;
 
       if (isPassageQ) {
         const qText = (qData.question || '').trim();
