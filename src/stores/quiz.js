@@ -13,31 +13,76 @@ export const useQuizStore = defineStore('quiz', () => {
 
   const transformQuestions = (qs) => {
     let currentPassage = '';
+    // Saved sentences for Para Jumble / Sentence Rearrangement blocks
+    let savedSentences = '';
+    let savedSubTopic = null;
+
     return qs.map(q => {
       const qData = { ...q };
-      
-      const isPassageQ = qData.topic_block === 'Reading Comprehension' || 
-                         qData.topic === 'Reading Comprehension' || 
-                         qData.sub_topic === 'Passage Base';
+
+      const topicLower = (qData.topic || '').toLowerCase();
+      const subTopicLower = (qData.sub_topic || '').toLowerCase();
+
+      const isParaJumble = topicLower.includes('jumble') || subTopicLower.includes('jumble');
+      const isSentenceRearrangement = topicLower.includes('rearrangement') || subTopicLower.includes('rearrangement');
+
+      // ── Para Jumble / Sentence Rearrangement: prepend saved sentences ──
+      if (isParaJumble || isSentenceRearrangement) {
+        const qText = (qData.question || '').trim();
+        const parts = qText.split(/\n+/);
+
+        // Check if this question has its own labeled sentences (multiline)
+        const hasOwnSentences = parts.length > 1 && parts.some(p =>
+          /^[\[(]?[A-Z][\])]?[.:)\s]/.test(p.trim()) || /^\d+[.:)\s]/.test(p.trim())
+        );
+
+        if (hasOwnSentences) {
+          // First question in the block: save sentences (everything except last line)
+          savedSentences = parts.slice(0, -1).join('\n');
+          savedSubTopic = qData.sub_topic;
+        } else if (savedSentences && savedSubTopic === qData.sub_topic) {
+          // Subsequent question: prepend the saved sentences to the question
+          qData.question = savedSentences + '\n\n' + qText;
+        } else {
+          // No saved sentences — try to extract from direction field
+          const dirText = (qData.direction || '').trim();
+          const dirParts = dirText.split('\n');
+          const sentenceLines = dirParts.filter(p =>
+            /^[\[(]?[A-Z][\])]?[.:)\s]/.test(p.trim()) || /^\d+[.:)\s]/.test(p.trim())
+          );
+          if (sentenceLines.length >= 3) {
+            savedSentences = sentenceLines.join('\n');
+            savedSubTopic = qData.sub_topic;
+            // Don't prepend for first question — it already shows via direction
+          }
+        }
+      } else {
+        // Reset saved sentences when we leave a Para Jumble / Rearrangement block
+        savedSentences = '';
+        savedSubTopic = null;
+      }
+
+      // ── Now apply the standard passage/displayQuestion splitting ──
+      const isPassageQ = qData.topic_block === 'Reading Comprehension' ||
+                         topicLower.includes('reading comprehension') ||
+                         subTopicLower.includes('passage base') ||
+                         isParaJumble || isSentenceRearrangement;
 
       if (isPassageQ) {
         const qText = (qData.question || '').trim();
         const qTextLower = qText.toLowerCase();
-        
-        // Phrases that indicate it's a subsequent question about the same passage
+
         const continuationPhrases = ['based on', 'according to', 'from the passage', 'in the passage', 'what', 'which', 'choose', 'how', 'why', 'with reference'];
         const isContinuation = continuationPhrases.some(phrase => qTextLower.startsWith(phrase));
-        
+
         const parts = qText.split(/\n+/);
-        
+
         if (!isContinuation || currentPassage === '') {
-          // It's a new passage
           if (parts.length > 1) {
             currentPassage = parts.slice(0, -1).join('\n\n');
             qData.passage = currentPassage;
             qData.displayQuestion = parts[parts.length - 1];
           } else {
-            // Fallback if no newlines exist: extract the last sentence as the question
             const matches = qText.match(/(.*?[.?!])\s+([^.?!]+[.?!]?)$/);
             if (matches) {
               currentPassage = matches[1].trim();
@@ -50,20 +95,8 @@ export const useQuizStore = defineStore('quiz', () => {
             }
           }
         } else if (currentPassage) {
-          // It's a subsequent question, use the current passage
           qData.passage = currentPassage;
-          
-          // Split by comma and remove the first part
-          const commaParts = qText.split(',');
-          if (commaParts.length > 1) {
-            let restOfQuestion = commaParts.slice(1).join(',').trim();
-            if (restOfQuestion.length > 0) {
-              restOfQuestion = restOfQuestion.charAt(0).toUpperCase() + restOfQuestion.slice(1);
-            }
-            qData.displayQuestion = restOfQuestion;
-          } else {
-            qData.displayQuestion = qText;
-          }
+          qData.displayQuestion = qText;
         } else {
           qData.displayQuestion = qText;
         }
@@ -71,6 +104,7 @@ export const useQuizStore = defineStore('quiz', () => {
         currentPassage = ''; // reset passage for normal questions
         qData.displayQuestion = qData.question;
       }
+
       return qData;
     });
   };
@@ -136,7 +170,7 @@ export const useQuizStore = defineStore('quiz', () => {
       correct,
       wrong,
       unanswered,
-      score: Math.max(0, score), // Usually scores can't go below 0, or maybe they can. Let's allow negative? Let's say Math.max(0, score) for now.
+      score: Math.max(0, score),
       percentage: Math.max(0, (score / questions.value.length) * 100)
     }
   })
