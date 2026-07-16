@@ -25,39 +25,49 @@ export const useQuizStore = defineStore('quiz', () => {
 
       const isParaJumble = topicLower.includes('jumble') || subTopicLower.includes('jumble');
       const isSentenceRearrangement = topicLower.includes('rearrangement') || subTopicLower.includes('rearrangement');
+      const isOddSentenceOut = topicLower.includes('odd sentence') || subTopicLower.includes('odd sentence');
+      const isParaCompletion = topicLower.includes('para completion') || subTopicLower.includes('para completion');
 
-      // ── Para Jumble / Sentence Rearrangement: prepend saved sentences ──
-      if (isParaJumble || isSentenceRearrangement) {
-        const qText = (qData.question || '').trim();
-        const parts = qText.split(/\n+/);
+      // ── Para Jumble / Sentence Rearrangement / Odd Sentence Out / Para Completion: Prepend sentences ──
+      if (isParaJumble || isSentenceRearrangement || isOddSentenceOut || isParaCompletion) {
+        let qText = (qData.question || '').trim();
+        
+        // Determine if this is the start of a block
+        // We consider it the start if we have no saved sentences, or if the sub_topic changes
+        // But also check if qText is long (contains the sentences). If it's a new long question, it's a new block.
+        const isLongQuestion = qText.length > 150 || qText.split('\n').length > 2;
 
-        // Check if this question has its own labeled sentences (multiline)
-        const hasOwnSentences = parts.length > 1 && parts.some(p =>
-          /^[\[(]?[A-Z][\])]?[.:)\s]/.test(p.trim()) || /^\d+[.:)\s]/.test(p.trim())
-        );
-
-        if (hasOwnSentences) {
-          // First question in the block: save sentences (everything except last line)
-          savedSentences = parts.slice(0, -1).join('\n');
-          savedSubTopic = qData.sub_topic;
-        } else if (savedSentences && savedSubTopic === qData.sub_topic) {
-          // Subsequent question: prepend the saved sentences to the question
-          qData.question = savedSentences + '\n\n' + qText;
-        } else {
-          // No saved sentences — try to extract from direction field
-          const dirText = (qData.direction || '').trim();
-          const dirParts = dirText.split('\n');
-          const sentenceLines = dirParts.filter(p =>
-            /^[\[(]?[A-Z][\])]?[.:)\s]/.test(p.trim()) || /^\d+[.:)\s]/.test(p.trim())
-          );
-          if (sentenceLines.length >= 3) {
-            savedSentences = sentenceLines.join('\n');
-            savedSubTopic = qData.sub_topic;
-            // Don't prepend for first question — it already shows via direction
+        if (!savedSentences || savedSubTopic !== qData.sub_topic || isLongQuestion) {
+          const parts = qText.split(/\n+/);
+          if (parts.length > 1) {
+             savedSentences = parts.slice(0, -1).join('\n\n');
+          } else {
+             const matches = qText.match(/(.*?[.?!])\s+([^.?!]+[.?!]?)$/);
+             if (matches) {
+               savedSentences = matches[1].trim();
+             } else {
+               savedSentences = qText;
+             }
           }
+          savedSubTopic = qData.sub_topic;
+        } else {
+          // It's a subsequent short question: split by the first period and take the second part
+          let cleanedQText = qText;
+          const periodIndex = cleanedQText.indexOf('.');
+          
+          // If there is a period and it's not at the very end of the string
+          if (periodIndex !== -1 && periodIndex < cleanedQText.length - 1) {
+            // Keep everything after the first period
+            cleanedQText = cleanedQText.substring(periodIndex + 1).trim();
+          }
+          
+          if (!cleanedQText) cleanedQText = qText; // fallback
+
+          // Prepend the saved sentences to the cleaned question text
+          qData.question = savedSentences + '\n\n' + cleanedQText;
         }
       } else {
-        // Reset saved sentences when we leave a Para Jumble / Rearrangement block
+        // Reset saved sentences when we leave a block
         savedSentences = '';
         savedSubTopic = null;
       }
@@ -66,7 +76,7 @@ export const useQuizStore = defineStore('quiz', () => {
       const isPassageQ = qData.topic_block === 'Reading Comprehension' ||
                          topicLower.includes('reading comprehension') ||
                          subTopicLower.includes('passage base') ||
-                         isParaJumble || isSentenceRearrangement;
+                         isParaJumble || isSentenceRearrangement || isOddSentenceOut || isParaCompletion;
 
       if (isPassageQ) {
         const qText = (qData.question || '').trim();
