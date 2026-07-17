@@ -141,6 +141,17 @@ export const useQuizStore = defineStore('quiz', () => {
         qData.displayQuestion = qData.question;
       }
 
+      // ── Explicit sub_question handling ──
+      // If the backend provided an explicit sub_question, force the layout:
+      // question -> left side (passage)
+      // sub_question -> right side (displayQuestion)
+      if (qData.sub_question) {
+        qData.passage = qData.question;
+        qData.displayQuestion = qData.sub_question;
+        // Also update currentPassage in case subsequent questions in the block need it
+        currentPassage = qData.question;
+      }
+
       return qData;
     });
   };
