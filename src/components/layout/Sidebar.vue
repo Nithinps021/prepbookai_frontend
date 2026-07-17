@@ -1,13 +1,12 @@
 <template>
   <aside 
     :class="[
-      'bg-surface border-r border-border transition-all duration-300 ease-in-out flex flex-col',
+      'bg-surface border-r border-border transition-transform duration-300 ease-in-out flex flex-col',
       // Desktop state
-      'hidden lg:flex',
-      isOpen ? 'w-64' : 'w-16',
+      isOpen ? 'lg:w-64' : 'lg:w-16',
       // Mobile state overrides
-      'lg:relative fixed inset-y-0 left-0 z-40 lg:z-auto lg:translate-x-0',
-      isMobileOpen ? 'translate-x-0 w-64 flex' : '-translate-x-full lg:translate-x-0'
+      'fixed inset-y-0 left-0 z-40 lg:static lg:translate-x-0',
+      isMobileOpen ? 'translate-x-0 w-64 shadow-2xl' : '-translate-x-full w-64 shadow-none lg:shadow-none'
     ]"
   >
     <!-- Profile Header -->
