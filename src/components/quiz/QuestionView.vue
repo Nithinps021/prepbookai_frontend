@@ -46,7 +46,7 @@
       <!-- Right Side: Question & Options -->
       <div class="flex-1 overflow-y-auto pr-2 lg:pl-4 min-h-0 flex flex-col">
         <!-- Always display the specific question text above the options here -->
-        <div class="text-base sm:text-lg text-text-primary mb-8 leading-relaxed whitespace-pre-wrap" v-html="formattedQuestion">
+        <div class="text-sm sm:text-base text-text-primary mb-8 leading-relaxed whitespace-pre-wrap" v-html="formattedQuestion">
         </div>
 
         <div class="grid grid-cols-1 gap-3">
