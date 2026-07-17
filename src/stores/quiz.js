@@ -13,31 +13,112 @@ export const useQuizStore = defineStore('quiz', () => {
 
   const transformQuestions = (qs) => {
     let currentPassage = '';
+    // Saved sentences for Para Jumble / Sentence Rearrangement blocks
+    let savedSentences = '';
+    let savedSubTopic = null;
+
     return qs.map(q => {
       const qData = { ...q };
-      
-      const isPassageQ = qData.topic_block === 'Reading Comprehension' || 
-                         qData.topic === 'Reading Comprehension' || 
-                         qData.sub_topic === 'Passage Base';
+
+      const topicLower = (qData.topic || '').toLowerCase();
+      const subTopicLower = (qData.sub_topic || '').toLowerCase();
+
+      const isParaJumble = topicLower.includes('jumble') || subTopicLower.includes('jumble');
+      const isSentenceRearrangement = topicLower.includes('rearrangement') || subTopicLower.includes('rearrangement');
+      const isOddSentenceOut = topicLower.includes('odd sentence') || subTopicLower.includes('odd sentence');
+      const isParaCompletion = topicLower.includes('para completion') || subTopicLower.includes('para completion');
+      const isClozeTest = topicLower.includes('cloze') || subTopicLower.includes('cloze');
+
+      // ── Para Jumble / Sentence Rearrangement / Odd Sentence Out / Para Completion / Cloze Test: Prepend sentences ──
+      if (isParaJumble || isSentenceRearrangement || isOddSentenceOut || isParaCompletion || isClozeTest) {
+        let qText = (qData.question || '').trim();
+        
+        // Determine if this is the start of a block
+        // We consider it the start if we have no saved sentences, or if the sub_topic changes
+        // But also check if qText is long (contains the sentences). If it's a new long question, it's a new block.
+        const isLongQuestion = qText.length > 150 || qText.split('\n').length > 2;
+
+        if (!savedSentences || savedSubTopic !== qData.sub_topic || isLongQuestion) {
+          const parts = qText.split(/\n+/);
+          if (parts.length > 1) {
+             savedSentences = parts.slice(0, -1).join('\n\n');
+          } else {
+             const matches = qText.match(/(.*?[.?!])\s+([^.?!]+[.?!]?)$/);
+             if (matches) {
+               savedSentences = matches[1].trim();
+             } else {
+               savedSentences = qText;
+             }
+          }
+          savedSubTopic = qData.sub_topic;
+        } else {
+          // It's a subsequent short question: split by the first period and take the second part
+          let cleanedQText = qText;
+          const periodIndex = cleanedQText.indexOf('.');
+          
+          // If there is a period and it's not at the very end of the string
+          if (periodIndex !== -1 && periodIndex < cleanedQText.length - 1) {
+            // Keep everything after the first period
+            cleanedQText = cleanedQText.substring(periodIndex + 1).trim();
+          }
+          
+          if (!cleanedQText) cleanedQText = qText; // fallback
+
+          // Prepend the saved sentences to the cleaned question text
+          qData.question = savedSentences + '\n\n' + cleanedQText;
+        }
+      } else {
+        // Reset saved sentences when we leave a block
+        savedSentences = '';
+        savedSubTopic = null;
+      }
+
+      // ── Column Matching: Remove first sentence if it's an instruction ──
+      const isColumnMatching = topicLower.includes('column') || subTopicLower.includes('column');
+      if (isColumnMatching && qData.question) {
+        let qText = qData.question.trim();
+        const lowerText = qText.toLowerCase();
+        
+        // If the question doesn't start directly with "Column I", it usually has an instruction sentence
+        if (!lowerText.startsWith('column i') && !lowerText.startsWith('column 1')) {
+          const firstPeriodIdx = qText.indexOf('.');
+          // Find the actual start of the column data, which usually has a colon or newline
+          const actualCol1Idx = qText.indexOf('Column I:');
+          
+          if (firstPeriodIdx !== -1) {
+            // If we found 'Column I:', we can just strip everything before it
+            if (actualCol1Idx !== -1) {
+              qData.question = qText.substring(actualCol1Idx).trim();
+            } 
+            // Fallback: just remove the first sentence if it seems like an instruction
+            else {
+              qData.question = qText.substring(firstPeriodIdx + 1).trim();
+            }
+          }
+        }
+      }
+
+      // ── Now apply the standard passage/displayQuestion splitting ──
+      const isPassageQ = qData.topic_block === 'Reading Comprehension' ||
+                         topicLower.includes('reading comprehension') ||
+                         subTopicLower.includes('passage base') ||
+                         isParaJumble || isSentenceRearrangement || isOddSentenceOut || isParaCompletion || isClozeTest;
 
       if (isPassageQ) {
         const qText = (qData.question || '').trim();
         const qTextLower = qText.toLowerCase();
-        
-        // Phrases that indicate it's a subsequent question about the same passage
+
         const continuationPhrases = ['based on', 'according to', 'from the passage', 'in the passage', 'what', 'which', 'choose', 'how', 'why', 'with reference'];
         const isContinuation = continuationPhrases.some(phrase => qTextLower.startsWith(phrase));
-        
+
         const parts = qText.split(/\n+/);
-        
+
         if (!isContinuation || currentPassage === '') {
-          // It's a new passage
           if (parts.length > 1) {
             currentPassage = parts.slice(0, -1).join('\n\n');
             qData.passage = currentPassage;
             qData.displayQuestion = parts[parts.length - 1];
           } else {
-            // Fallback if no newlines exist: extract the last sentence as the question
             const matches = qText.match(/(.*?[.?!])\s+([^.?!]+[.?!]?)$/);
             if (matches) {
               currentPassage = matches[1].trim();
@@ -50,20 +131,8 @@ export const useQuizStore = defineStore('quiz', () => {
             }
           }
         } else if (currentPassage) {
-          // It's a subsequent question, use the current passage
           qData.passage = currentPassage;
-          
-          // Split by comma and remove the first part
-          const commaParts = qText.split(',');
-          if (commaParts.length > 1) {
-            let restOfQuestion = commaParts.slice(1).join(',').trim();
-            if (restOfQuestion.length > 0) {
-              restOfQuestion = restOfQuestion.charAt(0).toUpperCase() + restOfQuestion.slice(1);
-            }
-            qData.displayQuestion = restOfQuestion;
-          } else {
-            qData.displayQuestion = qText;
-          }
+          qData.displayQuestion = qText;
         } else {
           qData.displayQuestion = qText;
         }
@@ -71,6 +140,18 @@ export const useQuizStore = defineStore('quiz', () => {
         currentPassage = ''; // reset passage for normal questions
         qData.displayQuestion = qData.question;
       }
+
+      // ── Explicit sub_question handling ──
+      // If the backend provided an explicit sub_question, force the layout:
+      // question -> left side (passage)
+      // sub_question -> right side (displayQuestion)
+      if (qData.sub_question) {
+        qData.passage = qData.question;
+        qData.displayQuestion = qData.sub_question;
+        // Also update currentPassage in case subsequent questions in the block need it
+        currentPassage = qData.question;
+      }
+
       return qData;
     });
   };
@@ -136,7 +217,7 @@ export const useQuizStore = defineStore('quiz', () => {
       correct,
       wrong,
       unanswered,
-      score: Math.max(0, score), // Usually scores can't go below 0, or maybe they can. Let's allow negative? Let's say Math.max(0, score) for now.
+      score: Math.max(0, score),
       percentage: Math.max(0, (score / questions.value.length) * 100)
     }
   })
