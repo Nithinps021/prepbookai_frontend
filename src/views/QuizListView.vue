@@ -51,6 +51,7 @@
         v-for="quiz in filteredQuizzes" 
         :key="quiz.id" 
         :quiz="quiz"
+        :attempt="attemptsMap[quiz.id]"
         @click="openQuizModal(quiz)"
       />
     </div>
@@ -91,8 +92,10 @@
     <QuizStartModal 
       :is-open="isModalOpen"
       :quiz="selectedQuiz"
+      :attempt="selectedAttempt"
       @update:is-open="isModalOpen = $event"
       @start="startQuiz"
+      @view-results="viewResults"
     />
   </div>
 </template>
@@ -102,6 +105,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/mock/api'
 import { useQuizStore } from '@/stores/quiz'
+import { useAuthStore } from '@/stores/auth'
 import QuizCard from '@/components/quiz/QuizCard.vue'
 import QuizStartModal from '@/components/quiz/QuizStartModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
@@ -111,11 +115,14 @@ import { Search, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 const route = useRoute()
 const router = useRouter()
 const quizStore = useQuizStore()
+const authStore = useAuthStore()
 
 const quizzes = ref([])
+const attemptsMap = ref({})
 const isLoading = ref(true)
 const searchQuery = ref('')
 const selectedQuiz = ref(null)
+const selectedAttempt = ref(null)
 const isModalOpen = ref(false)
 
 const subjects = ['All', 'English']
@@ -130,7 +137,7 @@ watch(activeSubject, (newVal) => {
   } else {
     router.replace({ path: '/quizzes', query: { subject: newVal } })
   }
-  fetchQuizzes()
+  fetchQuizzesAndAttempts()
 })
 
 // Sync active subject with URL changes (e.g. back button)
@@ -140,41 +147,72 @@ watch(() => route.query.subject, (newSubject) => {
   }
 })
 
-const fetchQuizzes = async () => {
+const fetchQuizzesAndAttempts = async () => {
   isLoading.value = true
   try {
-    const response = await api.getQuizzes(activeSubject.value, pagination.value.page, pagination.value.limit)
-    quizzes.value = response.data
-    pagination.value.totalPages = response.totalPages
+    const [quizzesResponse] = await Promise.all([
+      api.getQuizzes(activeSubject.value, pagination.value.page, pagination.value.limit),
+      fetchAttempts()
+    ])
+    quizzes.value = quizzesResponse.data
+    pagination.value.totalPages = quizzesResponse.totalPages
   } catch (error) {
-    console.error('Failed to fetch quizzes', error)
+    console.error('Failed to fetch data', error)
   } finally {
     isLoading.value = false
   }
 }
 
+const fetchAttempts = async () => {
+  if (!authStore.isAuthenticated) return
+  try {
+    const attempts = await api.getExamAttempts()
+    const map = {}
+    // Keep the best or most recent score, or just the first we see.
+    // The backend might return multiple attempts for a single quiz.
+    attempts.forEach(attempt => {
+      // If we haven't seen this quiz yet or if this attempt has a higher score
+      if (!map[attempt.quiz_doc_id] || attempt.score > map[attempt.quiz_doc_id].score) {
+        map[attempt.quiz_doc_id] = attempt
+      }
+    })
+    attemptsMap.value = map
+  } catch (error) {
+    console.error('Failed to fetch attempts', error)
+  }
+}
+
+// Re-fetch attempts if auth state changes
+watch(() => authStore.isAuthenticated, (newVal) => {
+  if (newVal) {
+    fetchAttempts()
+  } else {
+    attemptsMap.value = {}
+  }
+})
+
 onMounted(() => {
-  fetchQuizzes()
+  fetchQuizzesAndAttempts()
 })
 
 const nextPage = () => {
   if (pagination.value.page < pagination.value.totalPages) {
     pagination.value.page++
-    fetchQuizzes()
+    fetchQuizzesAndAttempts()
   }
 }
 
 const prevPage = () => {
   if (pagination.value.page > 1) {
     pagination.value.page--
-    fetchQuizzes()
+    fetchQuizzesAndAttempts()
   }
 }
 
 const goToPage = (page) => {
   if (page !== pagination.value.page) {
     pagination.value.page = page
-    fetchQuizzes()
+    fetchQuizzesAndAttempts()
   }
 }
 
@@ -213,6 +251,7 @@ const resetFilters = () => {
 
 const openQuizModal = (quiz) => {
   selectedQuiz.value = quiz
+  selectedAttempt.value = attemptsMap.value[quiz.id] || null
   isModalOpen.value = true
 }
 
@@ -220,5 +259,13 @@ const startQuiz = async () => {
   if (!selectedQuiz.value) return
   isModalOpen.value = false
   router.push({ path: `/quiz/${selectedQuiz.value.id}`, query: { subject: selectedQuiz.value.subject } })
+}
+
+const viewResults = async () => {
+  if (!selectedQuiz.value || !selectedAttempt.value) return
+  isModalOpen.value = false
+  // Navigate to results page with attempt ID in query, or load it here.
+  // Actually, we can just push to /results/:quizId?attemptId=...
+  router.push({ path: `/results/${selectedQuiz.value.id}`, query: { attemptId: selectedAttempt.value.id } })
 }
 </script>

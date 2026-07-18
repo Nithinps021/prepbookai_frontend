@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { auth, googleProvider } from '@/firebase'
+import { api } from '@/mock/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -21,6 +22,13 @@ export const useAuthStore = defineStore('auth', () => {
       }
       token.value = await currentUser.getIdToken()
       isAuthenticated.value = true
+      
+      // Register/sync user with backend
+      try {
+        await api.registerUser(currentUser.email, currentUser.phoneNumber)
+      } catch (err) {
+        console.error('Failed to sync user with backend:', err)
+      }
     } else {
       user.value = null
       token.value = null

@@ -1,7 +1,10 @@
 <template>
   <div class="h-screen bg-background overflow-y-auto w-full">
     <div class="w-full mx-auto px-4 md:px-8 lg:px-12 py-4 sm:py-6 lg:py-8">
-      <div class="space-y-6 animate-fade-in pb-10" v-if="quizStore.isFinished && score">
+      <div v-if="isLoading" class="flex justify-center items-center h-[50vh]">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-brand-500"></div>
+      </div>
+      <div class="space-y-6 animate-fade-in pb-10" v-else-if="quizStore.isFinished && score">
         <!-- Header Summary -->
         <div class="bg-surface rounded-2xl p-6 md:p-10 border border-border shadow-soft relative overflow-hidden flex flex-col md:flex-row items-center justify-center gap-8 md:gap-16">
           <!-- Confetti Canvas -->
@@ -144,18 +147,21 @@
 
 <script setup>
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useQuizStore } from '@/stores/quiz'
+import { api } from '@/mock/api'
 import confetti from 'canvas-confetti'
 import Badge from '@/components/ui/Badge.vue'
 import Button from '@/components/ui/Button.vue'
 import { CheckCircle, XCircle, MinusCircle, Library, RotateCcw, Lightbulb, AlertCircle, ChevronDown } from 'lucide-vue-next'
 
 const router = useRouter()
+const route = useRoute()
 const quizStore = useQuizStore()
 
 const score = computed(() => quizStore.calculateScore)
 const expandedQuestions = ref(new Set())
+const isLoading = ref(true)
 
 const toggleExpand = (id) => {
   if (expandedQuestions.value.has(id)) {
@@ -165,7 +171,25 @@ const toggleExpand = (id) => {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
+  const attemptId = route.query.attemptId
+  const quizId = route.params.id
+  
+  if (attemptId && quizId) {
+    try {
+      const [quizData, questionsData, attemptData] = await Promise.all([
+        api.getQuiz(quizId),
+        api.getQuestions(quizId),
+        api.getExamAttemptDetail(attemptId)
+      ])
+      quizStore.loadAttempt(quizData, questionsData, attemptData)
+    } catch (error) {
+      console.error('Failed to load past attempt', error)
+    }
+  }
+  
+  isLoading.value = false
+
   if (quizStore.isFinished && score.value && score.value.percentage >= 70) {
     // Delay slightly to ensure canvas is in DOM
     setTimeout(triggerConfetti, 100)

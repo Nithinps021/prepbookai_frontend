@@ -322,7 +322,7 @@ const confirmSubmit = async () => {
   pauseTimer()
   
   try {
-    await api.submitQuiz(quizStore.currentQuiz.id, quizStore.answers, timeTaken.value)
+    await api.submitQuiz(quizStore.currentQuiz, quizStore.questions, quizStore.answers, timeTaken.value)
     quizStore.submitQuiz(timeTaken.value)
     router.push(`/results/${quizStore.currentQuiz.id}`)
   } catch (error) {

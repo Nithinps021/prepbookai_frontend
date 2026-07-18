@@ -187,6 +187,30 @@ export const useQuizStore = defineStore('quiz', () => {
     isFinished.value = true
   }
 
+  const loadAttempt = (quizData, questionsData, attemptData) => {
+    currentQuiz.value = quizData
+    questions.value = transformQuestions(questionsData)
+    answers.value = {}
+    markedForReview.value = new Set()
+    currentQuestionIndex.value = 0
+    
+    // Map backend attempt data to local state
+    if (attemptData && attemptData.answers) {
+      attemptData.answers.forEach(ans => {
+        if (ans.selected_answer) {
+          const optionIndex = ans.selected_answer.charCodeAt(0) - 65
+          const q = questions.value[ans.question_index]
+          if (q && optionIndex >= 0 && optionIndex < 5) {
+            answers.value[q.id] = optionIndex
+          }
+        }
+      })
+    }
+    
+    isFinished.value = true
+    timeTaken.value = attemptData?.time_taken_seconds || 0
+  }
+
   const calculateScore = computed(() => {
     if (!isFinished.value) return null
     
@@ -234,6 +258,7 @@ export const useQuizStore = defineStore('quiz', () => {
     setAnswer,
     toggleMarkForReview,
     submitQuiz,
+    loadAttempt,
     calculateScore
   }
 })
