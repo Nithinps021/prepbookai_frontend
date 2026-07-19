@@ -9,6 +9,7 @@ export const useQuizStore = defineStore('quiz', () => {
   const currentQuestionIndex = ref(0)
   const isFinished = ref(false)
   const timeTaken = ref(0)
+  const timeSpent = ref({}) // { questionId: seconds }
   const negativeMarkingPenalty = 0.25
 
   const transformQuestions = (qs) => {
@@ -164,6 +165,7 @@ export const useQuizStore = defineStore('quiz', () => {
     currentQuestionIndex.value = 0
     isFinished.value = false
     timeTaken.value = 0
+    timeSpent.value = {}
   }
 
   const setAnswer = (questionId, optionIndex) => {
@@ -172,6 +174,13 @@ export const useQuizStore = defineStore('quiz', () => {
     } else {
       answers.value[questionId] = optionIndex
     }
+  }
+
+  const incrementTimeSpent = (questionId) => {
+    if (!timeSpent.value[questionId]) {
+      timeSpent.value[questionId] = 0
+    }
+    timeSpent.value[questionId]++
   }
 
   const toggleMarkForReview = (questionId) => {
@@ -193,6 +202,7 @@ export const useQuizStore = defineStore('quiz', () => {
     answers.value = {}
     markedForReview.value = new Set()
     currentQuestionIndex.value = 0
+    timeSpent.value = {}
     
     // Map backend attempt data to local state
     if (attemptData && attemptData.answers) {
@@ -203,6 +213,11 @@ export const useQuizStore = defineStore('quiz', () => {
           if (q && optionIndex >= 0 && optionIndex < 5) {
             answers.value[q.id] = optionIndex
           }
+        }
+        
+        const q = questions.value[ans.question_index]
+        if (q) {
+          timeSpent.value[q.id] = ans.time_spent_seconds || 0
         }
       })
     }
@@ -254,8 +269,10 @@ export const useQuizStore = defineStore('quiz', () => {
     currentQuestionIndex,
     isFinished,
     timeTaken,
+    timeSpent,
     startQuiz,
     setAnswer,
+    incrementTimeSpent,
     toggleMarkForReview,
     submitQuiz,
     loadAttempt,

@@ -23,7 +23,7 @@ export const api = {
     return await response.json();
   },
 
-  async submitQuiz(quiz, questions, answers, timeTaken) {
+  async submitQuiz(quiz, questions, answers, timeTaken, timeSpent = {}) {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
     
     // Map selected index to option letter A,B,C,D,E
@@ -57,7 +57,7 @@ export const api = {
         sub_topic: (q.topic_block || '').toLowerCase().includes('reading comprehension') ? (q.sub_topic || 'General') : (q.topic || 'General'),
         selected_answer: getOptionLetter(answers[q.id]),
         correct_answer: getCorrectLetter(q),
-        time_spent_seconds: null
+        time_spent_seconds: timeSpent[q.id] || 0
       }))
     };
 

@@ -103,6 +103,9 @@
                 <div>
                   <h3 class="text-4xl font-extrabold text-text-primary leading-none mb-2">{{ score.score.toFixed(2) }} <span class="text-xl text-text-muted font-bold">/ {{ score.total }}</span></h3>
                   <p class="text-sm font-semibold text-brand-600 dark:text-brand-400">Total Attempt Score</p>
+                  <p v-if="score.wrong > 0" class="text-xs font-medium text-red-500 mt-1">
+                    (-{{ (score.wrong * 0.25).toFixed(2) }} Negative Marks)
+                  </p>
                 </div>
               </div>
               
@@ -141,7 +144,14 @@
                     <span class="text-3xl font-black" :class="(topic.correct/topic.total) >= 0.7 ? 'text-green-600 dark:text-green-400' : (topic.correct/topic.total) >= 0.4 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'">
                       {{ Math.round((topic.correct / topic.total) * 100) || 0 }}%
                     </span>
-                    <span class="text-sm font-semibold bg-black/5 dark:bg-white/5 border border-border px-3 py-1.5 rounded-lg">{{ topic.correct }} / {{ topic.total }} Correct</span>
+                    <div class="flex items-center gap-2">
+                      <span v-if="topic.timeSpent > 0" class="text-sm font-semibold bg-black/5 dark:bg-white/5 border border-border px-3 py-1.5 rounded-lg flex items-center gap-1.5 text-text-secondary">
+                        <Clock class="w-3.5 h-3.5" /> {{ formatTime(topic.timeSpent) }}
+                      </span>
+                      <span class="text-sm font-semibold bg-black/5 dark:bg-white/5 border border-border px-3 py-1.5 rounded-lg">
+                        {{ topic.correct }} / {{ topic.total }} Correct
+                      </span>
+                    </div>
                   </div>
                   
                   <!-- Subtopics -->
@@ -199,6 +209,14 @@ const isAttemptLoading = ref(false)
 const attemptsList = ref([])
 const currentAttemptId = ref(null)
 
+const formatTime = (seconds) => {
+  if (!seconds) return '00:00'
+  const m = Math.floor(seconds / 60)
+  const s = seconds % 60
+  if (m === 0) return `${s}s`
+  return `${m}m ${s}s`
+}
+
 const groupedQuestions = computed(() => {
   if (!quizStore.questions) return []
   
@@ -213,6 +231,7 @@ const groupedQuestions = computed(() => {
         name: topic,
         correct: 0,
         total: 0,
+        timeSpent: 0,
         subTopics: {}
       }
     }
@@ -229,6 +248,7 @@ const groupedQuestions = computed(() => {
     const isQCorrect = isCorrect(q, index)
     
     groups[topic].total++
+    groups[topic].timeSpent += (quizStore.timeSpent[q.id] || 0)
     groups[topic].subTopics[subTopic].total++
     
     if (isQCorrect) {

@@ -221,7 +221,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { api } from '@/mock/api'
 import { useQuizStore } from '@/stores/quiz'
@@ -260,6 +260,12 @@ const { secondsLeft, formattedTime, isRunning, timeTaken, start: startTimer, pau
   if (!isReviewMode.value) {
     showSubmitModal.value = false
     confirmSubmit()
+  }
+})
+
+watch(secondsLeft, (newVal, oldVal) => {
+  if (isRunning.value && !isReviewMode.value && oldVal > newVal && currentQuestion.value) {
+    quizStore.incrementTimeSpent(currentQuestion.value.id)
   }
 })
 
@@ -344,7 +350,8 @@ const confirmSubmit = async () => {
       quizStore.currentQuiz, 
       quizStore.questions, 
       quizStore.answers, 
-      timeTaken.value
+      timeTaken.value,
+      quizStore.timeSpent
     )
     quizStore.submitQuiz(timeTaken.value)
     router.push({ path: `/results/${route.params.id}`, query: { attemptId: response.id } })
