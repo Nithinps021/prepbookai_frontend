@@ -43,7 +43,21 @@
 
     <!-- Quiz Grid -->
     <div v-if="isLoading" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-      <SkeletonLoader v-for="i in 6" :key="i" variant="card" class="h-48" />
+      <div v-for="i in 6" :key="i" class="bg-surface rounded-xl border border-border overflow-hidden shadow-soft flex flex-col h-[180px] animate-pulse">
+        <div class="p-5 flex-1 flex flex-col">
+          <div class="flex justify-between items-start mb-3">
+            <div class="h-6 w-20 bg-black/5 dark:bg-white/5 rounded-full"></div>
+            <div class="h-6 w-16 bg-black/5 dark:bg-white/5 rounded-full"></div>
+          </div>
+          <div class="h-5 w-3/4 bg-black/5 dark:bg-white/5 rounded mb-2"></div>
+          <div class="h-5 w-1/2 bg-black/5 dark:bg-white/5 rounded"></div>
+          <div class="mt-auto h-4 w-1/3 bg-black/5 dark:bg-white/5 rounded"></div>
+        </div>
+        <div class="px-5 py-3 border-t border-border bg-black/5 dark:bg-white/5 flex items-center justify-between">
+          <div class="h-4 w-16 bg-black/5 dark:bg-white/5 rounded"></div>
+          <div class="h-4 w-16 bg-black/5 dark:bg-white/5 rounded"></div>
+        </div>
+      </div>
     </div>
     
     <div v-else-if="filteredQuizzes.length > 0" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">

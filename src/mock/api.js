@@ -53,8 +53,8 @@ export const api = {
       answers: questions.map((q, idx) => ({
         question_index: idx,
         subject: q.subject || quiz.subject || 'English Language',
-        topic: q.topic || 'General',
-        sub_topic: q.sub_topic || q.topic || 'General',
+        topic: q.topic_block || 'General',
+        sub_topic: (q.topic_block || '').toLowerCase().includes('reading comprehension') ? (q.sub_topic || 'General') : (q.topic || 'General'),
         selected_answer: getOptionLetter(answers[q.id]),
         correct_answer: getCorrectLetter(q),
         time_spent_seconds: null
@@ -77,14 +77,13 @@ export const api = {
     return await response.json();
   },
 
-  async getExamAttempts(quizType = null) {
+  async getExamAttempts(quizType = null, quizDocId = null) {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    let url = `${baseUrl}/user/exam-attempts`;
-    if (quizType) {
-      url += `?quiz_type=${encodeURIComponent(quizType)}`;
-    }
+    let url = new URL(`${baseUrl}/user/exam-attempts`, window.location.origin);
+    if (quizType) url.searchParams.append('quiz_type', quizType);
+    if (quizDocId) url.searchParams.append('quiz_doc_id', quizDocId);
     
-    const response = await fetchWithAuth(url);
+    const response = await fetchWithAuth(url.toString());
     if (!response.ok) {
       const err = await response.text();
       throw new Error(`Failed to fetch exam attempts: ${err}`);

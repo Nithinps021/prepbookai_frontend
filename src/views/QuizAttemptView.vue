@@ -13,7 +13,7 @@
       
       <div class="flex items-center gap-3 sm:gap-6 shrink-0 ml-4">
         <ThemeToggle class="hidden sm:flex" />
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" v-if="!isReviewMode">
           <Timer 
             :seconds-left="secondsLeft" 
             :formatted-time="formattedTime" 
@@ -28,14 +28,17 @@
             <span class="hidden sm:inline">{{ isRunning ? 'Pause' : 'Resume' }}</span>
           </Button>
         </div>
-        <Button variant="primary" size="sm" @click="showSubmitModal = true">
+        <Button v-if="!isReviewMode" variant="primary" size="sm" @click="showSubmitModal = true">
           Submit
+        </Button>
+        <Button v-else variant="primary" size="sm" @click="closeReview">
+          Close Review
         </Button>
       </div>
     </header>
 
     <!-- Timer Progress Bar -->
-    <div class="h-1 w-full bg-border shrink-0">
+    <div class="h-1 w-full bg-border shrink-0" v-if="!isReviewMode">
       <div 
         class="h-full bg-brand-500 transition-all duration-1000 ease-linear"
         :style="{ width: `${(secondsLeft / quizStore.currentQuiz.duration) * 100}%` }"
@@ -63,6 +66,7 @@
             :question-number="quizStore.currentQuestionIndex + 1"
             :selected-option="quizStore.answers[currentQuestion.id]"
             :is-marked="isMarked"
+            :is-review-mode="isReviewMode"
             @select="handleSelectOption"
             @toggle-mark="toggleMarkForReview"
             class="flex-1 min-h-0 mb-6"
@@ -90,10 +94,10 @@
             <Button 
               v-else
               variant="primary" 
-              @click="showSubmitModal = true"
-              class="bg-green-600 hover:bg-green-700"
+              @click="isReviewMode ? closeReview() : showSubmitModal = true"
+              :class="isReviewMode ? '' : 'bg-green-600 hover:bg-green-700'"
             >
-              Submit
+              {{ isReviewMode ? 'Close Review' : 'Submit' }}
             </Button>
           </div>
         </div>
@@ -133,7 +137,7 @@
 
       <!-- Pause Overlay -->
       <div 
-        v-if="!isRunning && !showSubmitModal && !showExitModal && !isSubmitting"
+        v-if="!isReviewMode && !isRunning && !showSubmitModal && !showExitModal && !isSubmitting"
         class="absolute inset-0 z-50 bg-background/80 backdrop-blur-md flex flex-col items-center justify-center p-6"
       >
         <div class="bg-surface max-w-md w-full rounded-2xl border border-border p-6 shadow-xl text-center space-y-6">
@@ -240,6 +244,8 @@ const showExitModal = ref(false)
 const isSubmitting = ref(false)
 const isMobileGridOpen = ref(false)
 
+const isReviewMode = computed(() => route.query.review === 'true')
+
 const currentQuestion = computed(() => {
   return quizStore.questions[quizStore.currentQuestionIndex] || null
 })
@@ -251,8 +257,10 @@ const isMarked = computed(() => {
 
 const { secondsLeft, formattedTime, isRunning, timeTaken, start: startTimer, pause: pauseTimer, reset: resetTimer } = useTimer(0, () => {
   // Auto submit when time is up
-  showSubmitModal.value = false
-  confirmSubmit()
+  if (!isReviewMode.value) {
+    showSubmitModal.value = false
+    confirmSubmit()
+  }
 })
 
 const togglePause = () => {
@@ -266,16 +274,26 @@ const togglePause = () => {
 onMounted(async () => {
   const quizId = route.params.id
   const subject = route.query.subject || 'English Language'
+  const attemptId = route.query.attemptId
+  
   try {
-    const quizData = await api.getQuiz(quizId, subject)
-    const questionsData = await api.getQuestions(quizId, subject)
-    
-    quizStore.startQuiz(quizData, questionsData)
-    
-    // Initialize timer
-    resetTimer(quizData.duration)
-    startTimer()
-    
+    if (isReviewMode.value && attemptId) {
+      const [quizData, questionsData, attemptData] = await Promise.all([
+        api.getQuiz(quizId, subject),
+        api.getQuestions(quizId, subject),
+        api.getExamAttemptDetail(attemptId)
+      ])
+      quizStore.loadAttempt(quizData, questionsData, attemptData)
+    } else {
+      const quizData = await api.getQuiz(quizId, subject)
+      const questionsData = await api.getQuestions(quizId, subject)
+      
+      quizStore.startQuiz(quizData, questionsData)
+      
+      // Initialize timer
+      resetTimer(quizData.duration)
+      startTimer()
+    }
   } catch (error) {
     console.error('Failed to load quiz', error)
     router.push('/quizzes')
@@ -322,21 +340,40 @@ const confirmSubmit = async () => {
   pauseTimer()
   
   try {
-    await api.submitQuiz(quizStore.currentQuiz, quizStore.questions, quizStore.answers, timeTaken.value)
+    const response = await api.submitQuiz(
+      quizStore.currentQuiz, 
+      quizStore.questions, 
+      quizStore.answers, 
+      timeTaken.value
+    )
     quizStore.submitQuiz(timeTaken.value)
-    router.push(`/results/${quizStore.currentQuiz.id}`)
+    router.push({ path: `/results/${route.params.id}`, query: { attemptId: response.id } })
   } catch (error) {
-    console.error('Submit failed', error)
-    isSubmitting.value = false
-    startTimer()
+    console.error('Failed to submit quiz:', error)
+    // Fallback in case of error (local score only)
+    quizStore.submitQuiz(timeTaken.value)
+    router.push(`/results/${route.params.id}`)
   }
 }
 
 const confirmExit = () => {
-  showExitModal.value = true
+  if (isReviewMode.value) {
+    closeReview()
+  } else {
+    showExitModal.value = true
+  }
 }
 
 const doExit = () => {
   router.push('/quizzes')
+}
+
+const closeReview = () => {
+  const attemptId = route.query.attemptId
+  if (attemptId) {
+    router.push({ path: `/results/${route.params.id}`, query: { attemptId } })
+  } else {
+    router.push(`/results/${route.params.id}`)
+  }
 }
 </script>
