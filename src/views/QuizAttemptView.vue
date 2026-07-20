@@ -223,6 +223,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useQuery, useQueryClient } from '@tanstack/vue-query'
 import { api } from '@/mock/api'
 import { useQuizStore } from '@/stores/quiz'
 import { useTimer } from '@/composables/useTimer'
@@ -237,6 +238,7 @@ import { ArrowLeft, ChevronLeft, ChevronRight, Bookmark, LayoutGrid, X, Clock, P
 const route = useRoute()
 const router = useRouter()
 const quizStore = useQuizStore()
+const queryClient = useQueryClient()
 
 const isLoading = ref(true)
 const showSubmitModal = ref(false)
@@ -277,34 +279,57 @@ const togglePause = () => {
   }
 }
 
-onMounted(async () => {
-  const quizId = route.params.id
-  const subject = route.query.subject || 'English Language'
-  const attemptId = route.query.attemptId
+const subject = computed(() => route.query.subject || 'English Language')
+const quizId = computed(() => route.params.id)
+const attemptId = computed(() => route.query.attemptId)
+
+const { data: quizData, isError: isQuizError } = useQuery({
+  queryKey: ['quiz', quizId],
+  queryFn: () => api.getQuiz(quizId.value, subject.value),
+  enabled: computed(() => !!quizId.value),
+  staleTime: Infinity
+})
+
+const { data: questionsData, isError: isQuestionsError } = useQuery({
+  queryKey: ['questions', quizId],
+  queryFn: () => api.getQuestions(quizId.value, subject.value),
+  enabled: computed(() => !!quizId.value),
+  staleTime: Infinity
+})
+
+const { data: attemptData, isError: isAttemptError } = useQuery({
+  queryKey: ['examAttemptDetail', computed(() => String(attemptId.value))],
+  queryFn: () => api.getExamAttemptDetail(attemptId.value),
+  enabled: computed(() => isReviewMode.value && !!attemptId.value),
+  staleTime: Infinity
+})
+
+const isQuizInitialized = ref(false)
+
+watch([quizData, questionsData, attemptData], ([quiz, questions, attempt]) => {
+  if (isQuizInitialized.value) return;
   
-  try {
-    if (isReviewMode.value && attemptId) {
-      const [quizData, questionsData, attemptData] = await Promise.all([
-        api.getQuiz(quizId, subject),
-        api.getQuestions(quizId, subject),
-        api.getExamAttemptDetail(attemptId)
-      ])
-      quizStore.loadAttempt(quizData, questionsData, attemptData)
+  if (quiz && questions) {
+    if (isReviewMode.value && attemptId.value) {
+      if (attempt) {
+        quizStore.loadAttempt(quiz, questions, attempt)
+        isQuizInitialized.value = true
+        isLoading.value = false
+      }
     } else {
-      const quizData = await api.getQuiz(quizId, subject)
-      const questionsData = await api.getQuestions(quizId, subject)
-      
-      quizStore.startQuiz(quizData, questionsData)
-      
-      // Initialize timer
-      resetTimer(quizData.duration)
+      quizStore.startQuiz(quiz, questions)
+      resetTimer(quiz.duration)
       startTimer()
+      isQuizInitialized.value = true
+      isLoading.value = false
     }
-  } catch (error) {
-    console.error('Failed to load quiz', error)
+  }
+}, { immediate: true })
+
+watch([isQuizError, isQuestionsError, isAttemptError], ([e1, e2, e3]) => {
+  if (e1 || e2 || e3) {
+    console.error('Failed to load quiz')
     router.push('/quizzes')
-  } finally {
-    isLoading.value = false
   }
 })
 
@@ -354,6 +379,25 @@ const confirmSubmit = async () => {
       quizStore.timeSpent
     )
     quizStore.submitQuiz(timeTaken.value)
+    
+    // Invalidate the cache so the Results and Quizzes pages know to refresh
+    queryClient.invalidateQueries({ queryKey: ['examAttempts'] })
+    queryClient.invalidateQueries({ queryKey: ['allExamAttempts'] })
+    
+    // PRE-FETCH the new attempt details and history BEFORE routing
+    // This keeps the loading spinner on the Submit button and ensures the 
+    // Results page renders instantly without any popping or loading states.
+    await Promise.all([
+      queryClient.fetchQuery({
+        queryKey: ['examAttemptDetail', String(response.id)],
+        queryFn: () => api.getExamAttemptDetail(response.id)
+      }),
+      queryClient.fetchQuery({
+        queryKey: ['examAttempts', String(route.params.id)],
+        queryFn: () => api.getExamAttempts(null, route.params.id)
+      })
+    ])
+    
     router.push({ path: `/results/${route.params.id}`, query: { attemptId: response.id } })
   } catch (error) {
     console.error('Failed to submit quiz:', error)

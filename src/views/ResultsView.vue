@@ -190,8 +190,9 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useQuery } from '@tanstack/vue-query'
 import { useQuizStore } from '@/stores/quiz'
 import { api } from '@/mock/api'
 import confetti from 'canvas-confetti'
@@ -205,9 +206,20 @@ const quizStore = useQuizStore()
 
 const score = computed(() => quizStore.calculateScore)
 const isInitialLoad = ref(true)
-const isAttemptLoading = ref(false)
-const attemptsList = ref([])
-const currentAttemptId = ref(null)
+const currentAttemptId = ref(route.query.attemptId || null)
+
+const { data: attemptsList, isPending: isAttemptsLoading } = useQuery({
+  queryKey: ['examAttempts', computed(() => route.params.id)],
+  queryFn: () => api.getExamAttempts(null, route.params.id),
+  enabled: computed(() => !!route.params.id)
+})
+
+watch(attemptsList, (newAttempts) => {
+  const attemptId = route.query.attemptId
+  if (!attemptId && newAttempts && newAttempts.length > 0 && !currentAttemptId.value) {
+    loadAttemptData(newAttempts[0].id)
+  }
+}, { immediate: true })
 
 const formatTime = (seconds) => {
   if (!seconds) return '00:00'
@@ -268,55 +280,45 @@ const groupedQuestions = computed(() => {
   })
 })
 
-const loadAttemptData = async (attemptId) => {
-  if (currentAttemptId.value === attemptId) return;
-  
-  if (!isInitialLoad.value) {
-    isAttemptLoading.value = true;
-  }
-  
-  try {
-    const quizId = route.params.id;
-    const [quizData, questionsData, attemptData] = await Promise.all([
-      api.getQuiz(quizId),
-      api.getQuestions(quizId),
-      api.getExamAttemptDetail(attemptId)
-    ]);
-    quizStore.loadAttempt(quizData, questionsData, attemptData);
-    currentAttemptId.value = attemptId;
-    
-    // Update URL quietly to make it shareable/refreshable
-    router.replace({ query: { ...route.query, attemptId } });
-    
-    if (score.value && score.value.percentage >= 70) {
-      setTimeout(triggerConfetti, 100);
+const { data: quizData, isFetching: isQuizLoading } = useQuery({
+  queryKey: ['quiz', computed(() => route.params.id)],
+  queryFn: () => api.getQuiz(route.params.id),
+  enabled: computed(() => !!route.params.id),
+  staleTime: Infinity
+})
+
+const { data: questionsData, isFetching: isQuestionsLoading } = useQuery({
+  queryKey: ['questions', computed(() => route.params.id)],
+  queryFn: () => api.getQuestions(route.params.id),
+  enabled: computed(() => !!route.params.id),
+  staleTime: Infinity
+})
+
+const { data: attemptData, isFetching: isAttemptFetching } = useQuery({
+  queryKey: ['examAttemptDetail', computed(() => currentAttemptId.value ? String(currentAttemptId.value) : null)],
+  queryFn: () => api.getExamAttemptDetail(currentAttemptId.value),
+  enabled: computed(() => !!currentAttemptId.value),
+  staleTime: Infinity
+})
+
+const isAttemptLoading = computed(() => isQuizLoading.value || isQuestionsLoading.value || isAttemptFetching.value)
+
+watch([quizData, questionsData, attemptData], ([quiz, questions, attempt]) => {
+  if (quiz && questions && attempt && attempt.id === currentAttemptId.value) {
+    quizStore.loadAttempt(quiz, questions, attempt)
+    if (score.value && score.value.percentage >= 70 && !isInitialLoad.value) {
+      setTimeout(triggerConfetti, 100)
     }
-  } catch (error) {
-    console.error('Failed to load attempt', error);
-  } finally {
-    isAttemptLoading.value = false;
   }
+})
+
+const loadAttemptData = (attemptId) => {
+  if (currentAttemptId.value === attemptId) return;
+  currentAttemptId.value = attemptId;
+  router.replace({ query: { ...route.query, attemptId } });
 }
 
-onMounted(async () => {
-  const attemptId = route.query.attemptId
-  const quizId = route.params.id
-  
-  if (quizId) {
-    try {
-      attemptsList.value = await api.getExamAttempts(null, quizId);
-    } catch (e) {
-      console.error("Failed to load attempts list", e);
-    }
-  }
-  
-  if (attemptId && quizId) {
-    await loadAttemptData(attemptId);
-  } else if (attemptsList.value.length > 0) {
-    // If no attempt specified but we have history, load the latest one
-    await loadAttemptData(attemptsList.value[0].id);
-  }
-  
+onMounted(() => {
   isInitialLoad.value = false;
 })
 

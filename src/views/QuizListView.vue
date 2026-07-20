@@ -117,6 +117,7 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useQuery } from '@tanstack/vue-query'
 import { api } from '@/mock/api'
 import { useQuizStore } from '@/stores/quiz'
 import { useAuthStore } from '@/stores/auth'
@@ -131,9 +132,6 @@ const router = useRouter()
 const quizStore = useQuizStore()
 const authStore = useAuthStore()
 
-const quizzes = ref([])
-const attemptsMap = ref({})
-const isLoading = ref(true)
 const searchQuery = ref('')
 const selectedQuiz = ref(null)
 const selectedAttempt = ref(null)
@@ -143,6 +141,39 @@ const subjects = ['All', 'English']
 const activeSubject = ref(route.query.subject || 'English')
 const pagination = ref({ page: 1, limit: 15, totalPages: 1 })
 
+const { data: quizzesResponse, isPending: isQuizzesLoading } = useQuery({
+  queryKey: ['quizzes', activeSubject, computed(() => pagination.value.page), computed(() => pagination.value.limit)],
+  queryFn: () => api.getQuizzes(activeSubject.value, pagination.value.page, pagination.value.limit),
+  enabled: computed(() => !!authStore.isAuthenticated),
+  staleTime: 1000 * 60 * 10 // 10 minutes cache
+})
+
+const quizzes = computed(() => quizzesResponse.value?.data || [])
+watch(() => quizzesResponse.value?.totalPages, (newTotal) => {
+  if (newTotal !== undefined) {
+    pagination.value.totalPages = newTotal
+  }
+})
+
+const { data: attemptsData, isPending: isAttemptsLoading } = useQuery({
+  queryKey: ['allExamAttempts'],
+  queryFn: () => api.getExamAttempts(),
+  enabled: computed(() => !!authStore.isAuthenticated)
+})
+
+const attemptsMap = computed(() => {
+  if (!attemptsData.value) return {}
+  const map = {}
+  attemptsData.value.forEach(attempt => {
+    if (!map[attempt.quiz_doc_id] || attempt.score > map[attempt.quiz_doc_id].score) {
+      map[attempt.quiz_doc_id] = attempt
+    }
+  })
+  return map
+})
+
+const isLoading = computed(() => isQuizzesLoading.value || isAttemptsLoading.value)
+
 // Sync URL with active subject
 watch(activeSubject, (newVal) => {
   pagination.value.page = 1
@@ -151,7 +182,6 @@ watch(activeSubject, (newVal) => {
   } else {
     router.replace({ path: '/quizzes', query: { subject: newVal } })
   }
-  fetchQuizzesAndAttempts()
 })
 
 // Sync active subject with URL changes (e.g. back button)
@@ -161,72 +191,22 @@ watch(() => route.query.subject, (newSubject) => {
   }
 })
 
-const fetchQuizzesAndAttempts = async () => {
-  isLoading.value = true
-  try {
-    const [quizzesResponse] = await Promise.all([
-      api.getQuizzes(activeSubject.value, pagination.value.page, pagination.value.limit),
-      fetchAttempts()
-    ])
-    quizzes.value = quizzesResponse.data
-    pagination.value.totalPages = quizzesResponse.totalPages
-  } catch (error) {
-    console.error('Failed to fetch data', error)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const fetchAttempts = async () => {
-  if (!authStore.isAuthenticated) return
-  try {
-    const attempts = await api.getExamAttempts()
-    const map = {}
-    // Keep the best or most recent score, or just the first we see.
-    // The backend might return multiple attempts for a single quiz.
-    attempts.forEach(attempt => {
-      // If we haven't seen this quiz yet or if this attempt has a higher score
-      if (!map[attempt.quiz_doc_id] || attempt.score > map[attempt.quiz_doc_id].score) {
-        map[attempt.quiz_doc_id] = attempt
-      }
-    })
-    attemptsMap.value = map
-  } catch (error) {
-    console.error('Failed to fetch attempts', error)
-  }
-}
-
-// Re-fetch attempts if auth state changes
-watch(() => authStore.isAuthenticated, (newVal) => {
-  if (newVal) {
-    fetchAttempts()
-  } else {
-    attemptsMap.value = {}
-  }
-})
-
-onMounted(() => {
-  fetchQuizzesAndAttempts()
-})
-
+// Removed old manual fetching logic
 const nextPage = () => {
   if (pagination.value.page < pagination.value.totalPages) {
     pagination.value.page++
-    fetchQuizzesAndAttempts()
   }
 }
 
 const prevPage = () => {
   if (pagination.value.page > 1) {
     pagination.value.page--
-    fetchQuizzesAndAttempts()
   }
 }
 
 const goToPage = (page) => {
   if (page !== pagination.value.page) {
     pagination.value.page = page
-    fetchQuizzesAndAttempts()
   }
 }
 

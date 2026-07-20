@@ -22,13 +22,6 @@ export const useAuthStore = defineStore('auth', () => {
       }
       token.value = await currentUser.getIdToken()
       isAuthenticated.value = true
-      
-      // Register/sync user with backend
-      try {
-        await api.registerUser(currentUser.email, currentUser.phoneNumber)
-      } catch (err) {
-        console.error('Failed to sync user with backend:', err)
-      }
     } else {
       user.value = null
       token.value = null
@@ -42,6 +35,19 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
     try {
       const result = await signInWithPopup(auth, googleProvider)
+      
+      // Register/sync user with backend only on active login/signup
+      if (result && result.user) {
+        try {
+          await api.registerUser(result.user.email, result.user.phoneNumber)
+        } catch (err) {
+          // Ignore 409 Conflict if they already exist, log other errors
+          if (!err.message?.includes('409')) {
+             console.error('Failed to sync user with backend:', err)
+          }
+        }
+      }
+      
       // State is handled by onAuthStateChanged
     } catch (err) {
       error.value = err.message || 'Google login failed'
