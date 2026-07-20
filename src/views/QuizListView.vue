@@ -145,7 +145,7 @@ const { data: quizzesResponse, isPending: isQuizzesLoading } = useQuery({
   queryKey: ['quizzes', activeSubject, computed(() => pagination.value.page), computed(() => pagination.value.limit)],
   queryFn: () => api.getQuizzes(activeSubject.value, pagination.value.page, pagination.value.limit),
   enabled: computed(() => !!authStore.isAuthenticated),
-  staleTime: 1000 * 60 * 10 // 10 minutes cache
+  staleTime: 1000 * 60 * 60 // 1 hour cache
 })
 
 const quizzes = computed(() => quizzesResponse.value?.data || [])

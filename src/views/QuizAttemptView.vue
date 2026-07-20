@@ -174,8 +174,9 @@
 
     <!-- Submit Confirmation Modal -->
     <Modal v-model="showSubmitModal" title="Submit Assessment">
-      <div class="space-y-4">
-        <p class="text-text-primary">Are you sure you want to submit your assessment?</p>
+      <!-- Standard Confirmation View -->
+      <div v-if="submissionStage === 'idle'">
+        <p class="text-text-primary mb-6">Are you sure you want to submit your assessment?</p>
         
         <div class="bg-surface rounded-lg border border-border overflow-hidden">
           <div class="grid grid-cols-3 divide-x divide-border border-b border-border">
@@ -198,8 +199,43 @@
           </div>
         </div>
       </div>
+
+      <!-- Animated Submission Sequence -->
+      <div v-else class="py-12 flex flex-col items-center justify-center space-y-10 overflow-hidden">
+        <div class="relative flex items-center justify-center mt-4">
+          
+          <!-- Outer Radar Rings -->
+          <div v-if="submissionStage !== 'finalizing'" class="absolute w-32 h-32 rounded-full border-2 border-brand-500/20 animate-ping"></div>
+          <div v-if="submissionStage !== 'finalizing'" class="absolute w-24 h-24 rounded-full border border-brand-500/40 animate-pulse"></div>
+          
+          <!-- Core Container -->
+          <div :class="[
+            'relative z-10 w-20 h-20 rounded-full flex items-center justify-center shadow-xl transition-all duration-700 ease-out',
+            submissionStage === 'finalizing' 
+              ? 'bg-gradient-to-br from-green-400 to-green-600 scale-125 shadow-green-500/40' 
+              : 'bg-gradient-to-br from-brand-500 to-brand-700 shadow-brand-500/40 scale-100'
+          ]">
+            
+            <!-- Dynamic Icons -->
+            <CheckCircle v-if="submissionStage === 'finalizing'" class="w-10 h-10 text-white animate-in zoom-in duration-500" />
+            <Activity v-else-if="submissionStage === 'analyzing'" class="w-10 h-10 text-white animate-pulse" />
+            <UploadCloud v-else-if="submissionStage === 'uploading'" class="w-10 h-10 text-white animate-bounce" />
+          </div>
+        </div>
+        
+        <div class="text-center space-y-2 max-w-[80%] relative z-20">
+          <h3 class="text-xl font-bold text-text-primary transition-opacity duration-300 tracking-tight">
+            {{ submissionStage === 'uploading' ? 'Submitting your answers...' : 
+               submissionStage === 'analyzing' ? 'Analyzing performance...' : 
+               'Preparing results...' }}
+          </h3>
+          <p class="text-sm font-medium text-brand-600 dark:text-brand-400 animate-pulse uppercase tracking-widest">
+            {{ submissionStage === 'finalizing' ? 'Complete' : 'Please Wait' }}
+          </p>
+        </div>
+      </div>
       
-      <template #footer>
+      <template #footer v-if="submissionStage === 'idle'">
         <Button variant="secondary" @click="showSubmitModal = false" :disabled="isSubmitting">Continue Test</Button>
         <Button variant="primary" @click="confirmSubmit" :loading="isSubmitting">Final Submit</Button>
       </template>
@@ -233,7 +269,7 @@ import QuestionGrid from '@/components/quiz/QuestionGrid.vue'
 import ThemeToggle from '@/components/ui/ThemeToggle.vue'
 import Button from '@/components/ui/Button.vue'
 import Modal from '@/components/ui/Modal.vue'
-import { ArrowLeft, ChevronLeft, ChevronRight, Bookmark, LayoutGrid, X, Clock, Play, Pause } from 'lucide-vue-next'
+import { ArrowLeft, ChevronLeft, ChevronRight, Bookmark, LayoutGrid, X, Clock, Play, Pause, Loader2, CheckCircle, UploadCloud, Activity } from 'lucide-vue-next'
 
 const route = useRoute()
 const router = useRouter()
@@ -244,7 +280,14 @@ const isLoading = ref(true)
 const showSubmitModal = ref(false)
 const showExitModal = ref(false)
 const isSubmitting = ref(false)
+const submissionStage = ref('idle')
 const isMobileGridOpen = ref(false)
+
+watch(showSubmitModal, (newVal) => {
+  if (!newVal && isSubmitting.value) {
+    showSubmitModal.value = true // prevent closing during submission
+  }
+})
 
 const isReviewMode = computed(() => route.query.review === 'true')
 
@@ -368,6 +411,7 @@ const jumpToQuestion = (index) => {
 
 const confirmSubmit = async () => {
   isSubmitting.value = true
+  submissionStage.value = 'uploading'
   pauseTimer()
   
   try {
@@ -384,6 +428,8 @@ const confirmSubmit = async () => {
     queryClient.invalidateQueries({ queryKey: ['examAttempts'] })
     queryClient.invalidateQueries({ queryKey: ['allExamAttempts'] })
     
+    submissionStage.value = 'analyzing'
+    
     // PRE-FETCH the new attempt details and history BEFORE routing
     // This keeps the loading spinner on the Submit button and ensures the 
     // Results page renders instantly without any popping or loading states.
@@ -398,7 +444,13 @@ const confirmSubmit = async () => {
       })
     ])
     
-    router.push({ path: `/results/${route.params.id}`, query: { attemptId: response.id } })
+    submissionStage.value = 'finalizing'
+    
+    // Tiny delay to let the user see the success checkmark
+    setTimeout(() => {
+      router.push({ path: `/results/${route.params.id}`, query: { attemptId: response.id } })
+    }, 600)
+    
   } catch (error) {
     console.error('Failed to submit quiz:', error)
     // Fallback in case of error (local score only)
