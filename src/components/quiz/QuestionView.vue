@@ -6,27 +6,29 @@
         <div class="flex items-center gap-2 sm:gap-3">
           <Badge v-if="question.difficulty" :variant="question.difficulty" class="hidden sm:inline-flex">{{ question.difficulty }}</Badge>
           
-          <button 
-            v-if="selectedOption !== null"
-            @click="$emit('select', null)"
-            class="inline-flex items-center text-sm font-medium transition-colors p-1.5 rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
-            title="Clear Selection"
-          >
-            <Eraser class="w-4 h-4 sm:mr-1.5" />
-            <span class="hidden sm:inline">Clear</span>
-          </button>
+          <template v-if="!isReviewMode">
+            <button 
+              v-if="selectedOption !== null"
+              @click="$emit('select', null)"
+              class="inline-flex items-center text-sm font-medium transition-colors p-1.5 rounded-md text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+              title="Clear Selection"
+            >
+              <Eraser class="w-4 h-4 sm:mr-1.5" />
+              <span class="hidden sm:inline">Clear</span>
+            </button>
 
-          <button 
-            @click="$emit('toggle-mark')"
-            :class="[
-              'inline-flex items-center text-sm font-medium transition-colors p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5',
-              isMarked ? 'text-amber-600 dark:text-amber-400' : 'text-text-muted hover:text-text-primary'
-            ]"
-            title="Mark for Review"
-          >
-            <Bookmark class="w-4 h-4 sm:mr-1.5" :class="isMarked ? 'fill-current' : ''" />
-            <span class="hidden sm:inline">{{ isMarked ? 'Unmark' : 'Mark Review' }}</span>
-          </button>
+            <button 
+              @click="$emit('toggle-mark')"
+              :class="[
+                'inline-flex items-center text-sm font-medium transition-colors p-1.5 rounded-md hover:bg-black/5 dark:hover:bg-white/5',
+                isMarked ? 'text-amber-600 dark:text-amber-400' : 'text-text-muted hover:text-text-primary'
+              ]"
+              title="Mark for Review"
+            >
+              <Bookmark class="w-4 h-4 sm:mr-1.5" :class="isMarked ? 'fill-current' : ''" />
+              <span class="hidden sm:inline">{{ isMarked ? 'Unmark' : 'Mark Review' }}</span>
+            </button>
+          </template>
         </div>
       </div>
     </div>
@@ -53,30 +55,40 @@
           <button
             v-for="(option, index) in question.options"
             :key="index"
-            @click="selectOption(index)"
+            @click="!isReviewMode && selectOption(index)"
+            :disabled="isReviewMode"
             :class="[
               'w-full text-left p-3 sm:p-4 rounded-xl border transition-all duration-200 flex items-start group relative overflow-hidden',
-              selectedOption === index 
-                ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 shadow-sm' 
-                : 'border-border bg-surface text-text-primary hover:border-text-muted hover:bg-black/5 dark:hover:bg-white/5'
+              getOptionClass(option, index)
             ]"
           >
             <!-- Selection indicator -->
             <div 
               :class="[
                 'w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 flex items-center justify-center shrink-0 mr-3 mt-0.5 transition-colors',
-                selectedOption === index 
-                  ? 'border-brand-500 bg-brand-500 text-white' 
-                  : 'border-border group-hover:border-text-muted'
+                getIndicatorClass(option, index)
               ]"
             >
-              <Check v-if="selectedOption === index" class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+              <Check v-if="selectedOption === index || (isReviewMode && isActuallyCorrect(option))" class="w-3 h-3 sm:w-3.5 sm:h-3.5" />
               <span v-else class="text-[10px] sm:text-xs font-medium text-text-muted">{{ String.fromCharCode(65 + index) }}</span>
             </div>
             <div class="flex-1 text-sm sm:text-[15px] leading-snug">
               {{ option.replace(/^[A-E][).]\s*/, '') }}
             </div>
+            <div v-if="isReviewMode" class="shrink-0 ml-2">
+              <span v-if="isActuallyCorrect(option)" class="text-[10px] sm:text-xs font-semibold bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded">Correct</span>
+              <span v-else-if="selectedOption === index" class="text-[10px] sm:text-xs font-semibold bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-0.5 rounded">Your Answer</span>
+            </div>
           </button>
+        </div>
+        
+        <!-- Explanation Box -->
+        <div v-if="isReviewMode && question.explanation" class="mt-6 p-4 sm:p-5 bg-brand-50/50 dark:bg-brand-900/10 rounded-xl border border-brand-100 dark:border-brand-900/30">
+          <div class="flex items-center gap-2 mb-2 text-brand-700 dark:text-brand-400 font-semibold text-sm">
+            <Lightbulb class="w-4 h-4" />
+            Explanation
+          </div>
+          <p class="text-sm text-text-primary leading-relaxed whitespace-pre-wrap">{{ question.explanation }}</p>
         </div>
       </div>
     </div>
@@ -85,7 +97,7 @@
 
 <script setup>
 import { computed } from 'vue'
-import { Check, Bookmark, Eraser } from 'lucide-vue-next'
+import { Check, Bookmark, Eraser, Lightbulb } from 'lucide-vue-next'
 import Badge from '@/components/ui/Badge.vue'
 
 const props = defineProps({
@@ -104,6 +116,10 @@ const props = defineProps({
   isMarked: {
     type: Boolean,
     default: false
+  },
+  isReviewMode: {
+    type: Boolean,
+    default: false
   }
 })
 
@@ -115,6 +131,50 @@ const selectOption = (index) => {
   } else {
     emit('select', index)
   }
+}
+
+const isActuallyCorrect = (option) => {
+  const answer = props.question.answer;
+  if (!option || !answer) return false;
+  return option.startsWith(answer + ')') || option.startsWith(answer + '.') || option === answer;
+}
+
+const getOptionClass = (option, index) => {
+  if (!props.isReviewMode) {
+    return props.selectedOption === index 
+      ? 'border-brand-500 bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300 shadow-sm cursor-pointer' 
+      : 'border-border bg-surface text-text-primary hover:border-text-muted hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer'
+  }
+  
+  const correct = isActuallyCorrect(option)
+  if (correct) {
+    return 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900/20 dark:border-green-800 dark:text-green-300'
+  }
+  
+  if (props.selectedOption === index && !correct) {
+    return 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900/20 dark:border-red-800 dark:text-red-300'
+  }
+  
+  return 'bg-background border-border text-text-secondary opacity-70'
+}
+
+const getIndicatorClass = (option, index) => {
+  if (!props.isReviewMode) {
+    return props.selectedOption === index 
+      ? 'border-brand-500 bg-brand-500 text-white' 
+      : 'border-border group-hover:border-text-muted'
+  }
+  
+  const correct = isActuallyCorrect(option)
+  if (correct) {
+    return 'border-green-500 bg-green-500 text-white'
+  }
+  
+  if (props.selectedOption === index && !correct) {
+    return 'border-red-500 bg-red-500 text-white'
+  }
+  
+  return 'border-border bg-transparent'
 }
 
 const formattedPassage = computed(() => {

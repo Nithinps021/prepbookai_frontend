@@ -9,6 +9,7 @@ export const useQuizStore = defineStore('quiz', () => {
   const currentQuestionIndex = ref(0)
   const isFinished = ref(false)
   const timeTaken = ref(0)
+  const timeSpent = ref({}) // { questionId: seconds }
   const negativeMarkingPenalty = 0.25
 
   const transformQuestions = (qs) => {
@@ -164,6 +165,7 @@ export const useQuizStore = defineStore('quiz', () => {
     currentQuestionIndex.value = 0
     isFinished.value = false
     timeTaken.value = 0
+    timeSpent.value = {}
   }
 
   const setAnswer = (questionId, optionIndex) => {
@@ -172,6 +174,13 @@ export const useQuizStore = defineStore('quiz', () => {
     } else {
       answers.value[questionId] = optionIndex
     }
+  }
+
+  const incrementTimeSpent = (questionId) => {
+    if (!timeSpent.value[questionId]) {
+      timeSpent.value[questionId] = 0
+    }
+    timeSpent.value[questionId]++
   }
 
   const toggleMarkForReview = (questionId) => {
@@ -185,6 +194,36 @@ export const useQuizStore = defineStore('quiz', () => {
   const submitQuiz = (finalTime) => {
     timeTaken.value = finalTime
     isFinished.value = true
+  }
+
+  const loadAttempt = (quizData, questionsData, attemptData) => {
+    currentQuiz.value = quizData
+    questions.value = transformQuestions(questionsData)
+    answers.value = {}
+    markedForReview.value = new Set()
+    currentQuestionIndex.value = 0
+    timeSpent.value = {}
+    
+    // Map backend attempt data to local state
+    if (attemptData && attemptData.answers) {
+      attemptData.answers.forEach(ans => {
+        if (ans.selected_answer) {
+          const optionIndex = ans.selected_answer.charCodeAt(0) - 65
+          const q = questions.value[ans.question_index]
+          if (q && optionIndex >= 0 && optionIndex < 5) {
+            answers.value[q.id] = optionIndex
+          }
+        }
+        
+        const q = questions.value[ans.question_index]
+        if (q) {
+          timeSpent.value[q.id] = ans.time_spent_seconds || 0
+        }
+      })
+    }
+    
+    isFinished.value = true
+    timeTaken.value = attemptData?.time_taken_seconds || 0
   }
 
   const calculateScore = computed(() => {
@@ -230,10 +269,13 @@ export const useQuizStore = defineStore('quiz', () => {
     currentQuestionIndex,
     isFinished,
     timeTaken,
+    timeSpent,
     startQuiz,
     setAnswer,
+    incrementTimeSpent,
     toggleMarkForReview,
     submitQuiz,
+    loadAttempt,
     calculateScore
   }
 })

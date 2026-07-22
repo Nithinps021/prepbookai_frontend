@@ -6,9 +6,20 @@ import App from './App.vue'
 import { vReveal } from './composables/useScrollReveal'
 import { useAuthStore } from './stores/auth'
 import { watch } from 'vue'
+import { VueQueryPlugin } from '@tanstack/vue-query'
 
 const app = createApp(App)
 app.use(createPinia())
+app.use(VueQueryPlugin, {
+  queryClientConfig: {
+    defaultOptions: {
+      queries: {
+        staleTime: 1000 * 60 * 5, // 5 minutes
+        refetchOnWindowFocus: false,
+      },
+    },
+  },
+})
 
 const authStore = useAuthStore()
 

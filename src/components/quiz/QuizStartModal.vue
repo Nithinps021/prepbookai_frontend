@@ -25,6 +25,16 @@
         </ul>
       </div>
 
+      <div v-if="attempt" class="bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 p-4 rounded-lg border border-green-200 dark:border-green-800/50 mt-4">
+        <h4 class="font-semibold text-sm mb-2 flex items-center"><CheckCircle class="w-4 h-4 mr-1.5" /> Previous Attempt</h4>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          <div><span class="opacity-75">Score:</span> <span class="font-bold">{{ attempt.score }} / {{ attempt.total_marks }}</span></div>
+          <div><span class="opacity-75">Correct:</span> <span class="font-bold text-green-600 dark:text-green-400">{{ attempt.correct_count }}</span></div>
+          <div><span class="opacity-75">Wrong:</span> <span class="font-bold text-red-600 dark:text-red-400">{{ attempt.wrong_count }}</span></div>
+          <div><span class="opacity-75">Unanswered:</span> <span class="font-bold">{{ attempt.unanswered_count }}</span></div>
+        </div>
+      </div>
+
       <div class="bg-blue-50 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300 p-3 rounded-lg text-xs flex items-start mt-4">
         <Info class="w-4 h-4 mr-2 shrink-0 mt-0.5" />
         <p>Ensure you have a stable internet connection. You can pause the exam at any time using the pause button next to the timer.</p>
@@ -33,7 +43,10 @@
     
     <template #footer>
       <Button variant="ghost" @click="$emit('update:isOpen', false)">Cancel</Button>
-      <Button variant="primary" @click="$emit('start')">Start Quiz</Button>
+      <div class="flex gap-2">
+        <Button v-if="attempt" variant="secondary" @click="$emit('view-results')">View Results</Button>
+        <Button variant="primary" @click="$emit('start')">{{ attempt ? 'Retake Quiz' : 'Start Quiz' }}</Button>
+      </div>
     </template>
   </Modal>
 </template>
@@ -42,7 +55,7 @@
 import Modal from '@/components/ui/Modal.vue'
 import Badge from '@/components/ui/Badge.vue'
 import Button from '@/components/ui/Button.vue'
-import { Clock, ListOrdered, AlertCircle, Info } from 'lucide-vue-next'
+import { Clock, ListOrdered, AlertCircle, Info, CheckCircle } from 'lucide-vue-next'
 
 const props = defineProps({
   isOpen: {
@@ -52,8 +65,12 @@ const props = defineProps({
   quiz: {
     type: Object,
     default: null
+  },
+  attempt: {
+    type: Object,
+    default: null
   }
 })
 
-defineEmits(['update:isOpen', 'start'])
+defineEmits(['update:isOpen', 'start', 'view-results'])
 </script>

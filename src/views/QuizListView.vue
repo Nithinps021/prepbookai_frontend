@@ -43,7 +43,21 @@
 
     <!-- Quiz Grid -->
     <div v-if="isLoading" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-      <SkeletonLoader v-for="i in 6" :key="i" variant="card" class="h-48" />
+      <div v-for="i in 6" :key="i" class="bg-surface rounded-xl border border-border overflow-hidden shadow-soft flex flex-col h-[180px] animate-pulse">
+        <div class="p-5 flex-1 flex flex-col">
+          <div class="flex justify-between items-start mb-3">
+            <div class="h-6 w-20 bg-black/5 dark:bg-white/5 rounded-full"></div>
+            <div class="h-6 w-16 bg-black/5 dark:bg-white/5 rounded-full"></div>
+          </div>
+          <div class="h-5 w-3/4 bg-black/5 dark:bg-white/5 rounded mb-2"></div>
+          <div class="h-5 w-1/2 bg-black/5 dark:bg-white/5 rounded"></div>
+          <div class="mt-auto h-4 w-1/3 bg-black/5 dark:bg-white/5 rounded"></div>
+        </div>
+        <div class="px-5 py-3 border-t border-border bg-black/5 dark:bg-white/5 flex items-center justify-between">
+          <div class="h-4 w-16 bg-black/5 dark:bg-white/5 rounded"></div>
+          <div class="h-4 w-16 bg-black/5 dark:bg-white/5 rounded"></div>
+        </div>
+      </div>
     </div>
     
     <div v-else-if="filteredQuizzes.length > 0" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -51,6 +65,7 @@
         v-for="quiz in filteredQuizzes" 
         :key="quiz.id" 
         :quiz="quiz"
+        :attempt="attemptsMap[quiz.id]"
         @click="openQuizModal(quiz)"
       />
     </div>
@@ -91,8 +106,10 @@
     <QuizStartModal 
       :is-open="isModalOpen"
       :quiz="selectedQuiz"
+      :attempt="selectedAttempt"
       @update:is-open="isModalOpen = $event"
       @start="startQuiz"
+      @view-results="viewResults"
     />
   </div>
 </template>
@@ -100,8 +117,10 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useQuery } from '@tanstack/vue-query'
 import { api } from '@/mock/api'
 import { useQuizStore } from '@/stores/quiz'
+import { useAuthStore } from '@/stores/auth'
 import QuizCard from '@/components/quiz/QuizCard.vue'
 import QuizStartModal from '@/components/quiz/QuizStartModal.vue'
 import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
@@ -111,16 +130,49 @@ import { Search, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 const route = useRoute()
 const router = useRouter()
 const quizStore = useQuizStore()
+const authStore = useAuthStore()
 
-const quizzes = ref([])
-const isLoading = ref(true)
 const searchQuery = ref('')
 const selectedQuiz = ref(null)
+const selectedAttempt = ref(null)
 const isModalOpen = ref(false)
 
 const subjects = ['All', 'English']
 const activeSubject = ref(route.query.subject || 'English')
 const pagination = ref({ page: 1, limit: 15, totalPages: 1 })
+
+const { data: quizzesResponse, isPending: isQuizzesLoading } = useQuery({
+  queryKey: ['quizzes', activeSubject, computed(() => pagination.value.page), computed(() => pagination.value.limit)],
+  queryFn: () => api.getQuizzes(activeSubject.value, pagination.value.page, pagination.value.limit),
+  enabled: computed(() => !!authStore.isAuthenticated),
+  staleTime: 1000 * 60 * 60 // 1 hour cache
+})
+
+const quizzes = computed(() => quizzesResponse.value?.data || [])
+watch(() => quizzesResponse.value?.totalPages, (newTotal) => {
+  if (newTotal !== undefined) {
+    pagination.value.totalPages = newTotal
+  }
+})
+
+const { data: attemptsData, isPending: isAttemptsLoading } = useQuery({
+  queryKey: ['allExamAttempts'],
+  queryFn: () => api.getExamAttempts(),
+  enabled: computed(() => !!authStore.isAuthenticated)
+})
+
+const attemptsMap = computed(() => {
+  if (!attemptsData.value) return {}
+  const map = {}
+  attemptsData.value.forEach(attempt => {
+    if (!map[attempt.quiz_doc_id] || attempt.score > map[attempt.quiz_doc_id].score) {
+      map[attempt.quiz_doc_id] = attempt
+    }
+  })
+  return map
+})
+
+const isLoading = computed(() => isQuizzesLoading.value || isAttemptsLoading.value)
 
 // Sync URL with active subject
 watch(activeSubject, (newVal) => {
@@ -130,7 +182,6 @@ watch(activeSubject, (newVal) => {
   } else {
     router.replace({ path: '/quizzes', query: { subject: newVal } })
   }
-  fetchQuizzes()
 })
 
 // Sync active subject with URL changes (e.g. back button)
@@ -140,41 +191,22 @@ watch(() => route.query.subject, (newSubject) => {
   }
 })
 
-const fetchQuizzes = async () => {
-  isLoading.value = true
-  try {
-    const response = await api.getQuizzes(activeSubject.value, pagination.value.page, pagination.value.limit)
-    quizzes.value = response.data
-    pagination.value.totalPages = response.totalPages
-  } catch (error) {
-    console.error('Failed to fetch quizzes', error)
-  } finally {
-    isLoading.value = false
-  }
-}
-
-onMounted(() => {
-  fetchQuizzes()
-})
-
+// Removed old manual fetching logic
 const nextPage = () => {
   if (pagination.value.page < pagination.value.totalPages) {
     pagination.value.page++
-    fetchQuizzes()
   }
 }
 
 const prevPage = () => {
   if (pagination.value.page > 1) {
     pagination.value.page--
-    fetchQuizzes()
   }
 }
 
 const goToPage = (page) => {
   if (page !== pagination.value.page) {
     pagination.value.page = page
-    fetchQuizzes()
   }
 }
 
@@ -213,6 +245,7 @@ const resetFilters = () => {
 
 const openQuizModal = (quiz) => {
   selectedQuiz.value = quiz
+  selectedAttempt.value = attemptsMap.value[quiz.id] || null
   isModalOpen.value = true
 }
 
@@ -220,5 +253,13 @@ const startQuiz = async () => {
   if (!selectedQuiz.value) return
   isModalOpen.value = false
   router.push({ path: `/quiz/${selectedQuiz.value.id}`, query: { subject: selectedQuiz.value.subject } })
+}
+
+const viewResults = async () => {
+  if (!selectedQuiz.value || !selectedAttempt.value) return
+  isModalOpen.value = false
+  // Navigate to results page with attempt ID in query, or load it here.
+  // Actually, we can just push to /results/:quizId?attemptId=...
+  router.push({ path: `/results/${selectedQuiz.value.id}`, query: { attemptId: selectedAttempt.value.id } })
 }
 </script>

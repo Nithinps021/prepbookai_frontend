@@ -27,6 +27,7 @@ export async function fetchWithAuth(url, options = {}) {
   const newOptions = {
     ...options,
     headers,
+    cache: 'no-store'
   };
 
   return fetch(url, newOptions);
