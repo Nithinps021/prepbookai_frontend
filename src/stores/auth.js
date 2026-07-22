@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth'
 import { auth, googleProvider } from '@/firebase'
+import { api } from '@/mock/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(null)
@@ -34,6 +35,19 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
     try {
       const result = await signInWithPopup(auth, googleProvider)
+      
+      // Register/sync user with backend only on active login/signup
+      if (result && result.user) {
+        try {
+          await api.registerUser(result.user.email, result.user.phoneNumber)
+        } catch (err) {
+          // Ignore 409 Conflict if they already exist, log other errors
+          if (!err.message?.includes('409')) {
+             console.error('Failed to sync user with backend:', err)
+          }
+        }
+      }
+      
       // State is handled by onAuthStateChanged
     } catch (err) {
       error.value = err.message || 'Google login failed'
