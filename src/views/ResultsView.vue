@@ -22,7 +22,7 @@
             :key="attempt.id"
             @click="loadAttemptData(attempt.id)"
             class="p-4 rounded-xl border cursor-pointer transition-all duration-200 shadow-sm"
-            :class="attempt.id === currentAttemptId ? 'bg-brand-50 border-brand-200 dark:bg-brand-900/20 dark:border-brand-800' : 'bg-surface border-border hover:border-brand-300 hover:shadow-md'"
+            :class="String(attempt.id) === String(currentAttemptId) ? 'bg-brand-50 border-brand-200 dark:bg-brand-900/20 dark:border-brand-800' : 'bg-surface border-border hover:border-brand-300 hover:shadow-md'"
           >
             <div class="flex justify-between items-start mb-2">
               <span class="text-xs font-semibold text-text-muted">Attempt {{ attempt.attempt_number }}</span>
@@ -304,7 +304,7 @@ const { data: attemptData, isFetching: isAttemptFetching } = useQuery({
 const isAttemptLoading = computed(() => isQuizLoading.value || isQuestionsLoading.value || isAttemptFetching.value)
 
 watch([quizData, questionsData, attemptData], ([quiz, questions, attempt]) => {
-  if (quiz && questions && attempt && attempt.id === currentAttemptId.value) {
+  if (quiz && questions && attempt && String(attempt.id) === String(currentAttemptId.value)) {
     quizStore.loadAttempt(quiz, questions, attempt)
     if (score.value && score.value.percentage >= 70 && !isInitialLoad.value) {
       setTimeout(triggerConfetti, 100)
@@ -313,9 +313,9 @@ watch([quizData, questionsData, attemptData], ([quiz, questions, attempt]) => {
 })
 
 const loadAttemptData = (attemptId) => {
-  if (currentAttemptId.value === attemptId) return;
-  currentAttemptId.value = attemptId;
-  router.replace({ query: { ...route.query, attemptId } });
+  if (String(currentAttemptId.value) === String(attemptId)) return;
+  currentAttemptId.value = String(attemptId);
+  router.replace({ query: { ...route.query, attemptId: String(attemptId) } });
 }
 
 onMounted(() => {
