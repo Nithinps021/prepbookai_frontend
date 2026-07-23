@@ -124,14 +124,22 @@
             :current-index="quizStore.currentQuestionIndex"
             :answers="quizStore.answers"
             :marked-for-review="quizStore.markedForReview"
+            :is-review-mode="isReviewMode"
             @jump="jumpToQuestion"
           />
         </div>
 
         <div class="p-4 border-t border-border bg-black/5 dark:bg-white/5 space-y-2 text-xs text-text-muted shrink-0">
-          <div class="flex items-center gap-2"><div class="w-3 h-3 bg-brand-500 rounded-sm"></div> Answered</div>
-          <div class="flex items-center gap-2"><div class="w-3 h-3 bg-amber-100 border border-amber-300 rounded-sm"></div> Marked for Review</div>
-          <div class="flex items-center gap-2"><div class="w-3 h-3 bg-surface border border-border rounded-sm"></div> Unanswered</div>
+          <template v-if="isReviewMode">
+            <div class="flex items-center gap-2"><div class="w-3 h-3 bg-green-500 rounded-sm"></div> Correct</div>
+            <div class="flex items-center gap-2"><div class="w-3 h-3 bg-red-500 rounded-sm"></div> Wrong</div>
+            <div class="flex items-center gap-2"><div class="w-3 h-3 bg-surface border border-border rounded-sm opacity-70"></div> Unanswered</div>
+          </template>
+          <template v-else>
+            <div class="flex items-center gap-2"><div class="w-3 h-3 bg-brand-500 rounded-sm"></div> Answered</div>
+            <div class="flex items-center gap-2"><div class="w-3 h-3 bg-amber-100 border border-amber-300 rounded-sm"></div> Marked for Review</div>
+            <div class="flex items-center gap-2"><div class="w-3 h-3 bg-surface border border-border rounded-sm"></div> Unanswered</div>
+          </template>
         </div>
       </aside>
 
