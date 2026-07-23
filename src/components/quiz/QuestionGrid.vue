@@ -35,18 +35,48 @@ const props = defineProps({
   markedForReview: {
     type: Set,
     required: true
+  },
+  isReviewMode: {
+    type: Boolean,
+    default: false
   }
 })
 
 defineEmits(['jump'])
 
+const isOptionCorrect = (option, answer) => {
+  if (!option || !answer) return false;
+  return option.startsWith(answer + ')') || option.startsWith(answer + '.') || option === answer;
+}
+
 const getButtonClass = (index) => {
-  const questionId = props.questions[index].id
+  const question = props.questions[index]
+  const questionId = question.id
   const isCurrent = index === props.currentIndex
   const isAnswered = props.answers[questionId] !== undefined
   const isMarked = props.markedForReview.has(questionId)
 
   let baseClass = 'relative '
+
+  if (props.isReviewMode) {
+    if (isAnswered) {
+      const selectedOptionIndex = props.answers[questionId]
+      const selectedOption = question.options[selectedOptionIndex]
+      const correct = isOptionCorrect(selectedOption, question.answer)
+      
+      baseClass += correct 
+        ? 'bg-green-500 text-white border-green-600 ' 
+        : 'bg-red-500 text-white border-red-600 '
+    } else {
+      baseClass += 'bg-surface text-text-secondary opacity-70 border-border '
+    }
+    
+    if (isCurrent) {
+      baseClass += 'ring-2 ring-brand-500 ring-offset-2 ring-offset-background '
+    }
+    
+    return baseClass
+  }
 
   if (isCurrent) {
     baseClass += 'ring-2 ring-brand-500 ring-offset-2 ring-offset-background bg-brand-50 dark:bg-brand-900/30 text-brand-700 dark:text-brand-300 '
