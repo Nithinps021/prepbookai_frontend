@@ -1,6 +1,10 @@
 <template>
   <div class="bg-surface rounded-xl border border-border overflow-hidden shadow-soft hover:shadow-hover hover:-translate-y-1 transition-all duration-300 flex flex-col h-full cursor-pointer group relative" @click="$emit('click')">
-    <div v-if="attempt" class="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm border border-green-200 dark:border-green-800">
+    <div v-if="isAttemptsLoading" class="absolute top-3 right-3 z-10 w-16 h-6 rounded-full overflow-hidden">
+      <SkeletonLoader class="w-full h-full" />
+    </div>
+
+    <div v-else-if="attempt" class="absolute top-3 right-3 z-10 flex items-center gap-1.5 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2.5 py-1 rounded-full text-xs font-semibold shadow-sm border border-green-200 dark:border-green-800">
       <CheckCircle class="w-3.5 h-3.5" />
       <span>{{ attempt.score !== undefined ? `${attempt.percentage?.toFixed(0) || Math.round(attempt.score / attempt.total_marks * 100)}%` : 'Attempted' }}</span>
     </div>
@@ -35,6 +39,7 @@
 
 <script setup>
 import Badge from '@/components/ui/Badge.vue'
+import SkeletonLoader from '@/components/ui/SkeletonLoader.vue'
 import { Clock, ListOrdered, CheckCircle } from 'lucide-vue-next'
 
 const props = defineProps({
@@ -45,6 +50,10 @@ const props = defineProps({
   attempt: {
     type: Object,
     default: null
+  },
+  isAttemptsLoading: {
+    type: Boolean,
+    default: false
   }
 })
 

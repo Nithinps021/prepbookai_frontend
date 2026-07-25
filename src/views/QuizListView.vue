@@ -66,6 +66,7 @@
         :key="quiz.id" 
         :quiz="quiz"
         :attempt="attemptsMap[quiz.id]"
+        :is-attempts-loading="isAttemptsLoading"
         @click="openQuizModal(quiz)"
       />
     </div>
@@ -80,24 +81,16 @@
     </div>
 
     <!-- Pagination -->
-    <div v-if="!isLoading && pagination.totalPages > 1" class="mt-8 flex items-center justify-center gap-2">
+    <div v-if="!isLoading && totalPages > 1" class="mt-8 flex items-center justify-center gap-2">
       <Button variant="secondary" class="w-10 h-10 p-0 flex items-center justify-center" @click="prevPage" :disabled="pagination.page === 1">
         <ChevronLeft class="w-5 h-5" />
       </Button>
       
-      <div class="flex items-center gap-1 mx-2">
-        <Button 
-          v-for="page in visiblePages" 
-          :key="page"
-          :variant="pagination.page === page ? 'primary' : 'secondary'"
-          class="w-10 h-10 p-0 flex items-center justify-center font-medium"
-          @click="goToPage(page)"
-        >
-          {{ page }}
-        </Button>
+      <div class="flex items-center gap-4 mx-4 font-medium text-text-primary">
+        Page {{ pagination.page }} of {{ totalPages }}
       </div>
 
-      <Button variant="secondary" class="w-10 h-10 p-0 flex items-center justify-center" @click="nextPage" :disabled="pagination.page === pagination.totalPages">
+      <Button variant="secondary" class="w-10 h-10 p-0 flex items-center justify-center" @click="nextPage" :disabled="pagination.page === totalPages">
         <ChevronRight class="w-5 h-5" />
       </Button>
     </div>
@@ -139,20 +132,19 @@ const isModalOpen = ref(false)
 
 const subjects = ['All', 'English']
 const activeSubject = ref(route.query.subject || 'English')
-const pagination = ref({ page: 1, limit: 15, totalPages: 1 })
+const pagination = ref({ page: 1, limit: 15, cursor: null, history: [null] })
 
 const { data: quizzesResponse, isPending: isQuizzesLoading } = useQuery({
-  queryKey: ['quizzes', activeSubject, computed(() => pagination.value.page), computed(() => pagination.value.limit)],
-  queryFn: () => api.getQuizzes(activeSubject.value, pagination.value.page, pagination.value.limit),
+  queryKey: ['quizzes', activeSubject, computed(() => pagination.value.cursor), computed(() => pagination.value.limit)],
+  queryFn: () => api.getQuizzes(activeSubject.value, pagination.value.cursor, pagination.value.limit),
   enabled: computed(() => !!authStore.isAuthenticated),
   staleTime: 1000 * 60 * 60 // 1 hour cache
 })
 
 const quizzes = computed(() => quizzesResponse.value?.data || [])
-watch(() => quizzesResponse.value?.totalPages, (newTotal) => {
-  if (newTotal !== undefined) {
-    pagination.value.totalPages = newTotal
-  }
+const totalPages = computed(() => {
+  const total = quizzesResponse.value?.total || 0;
+  return Math.max(1, Math.ceil(total / pagination.value.limit));
 })
 
 const { data: attemptsData, isPending: isAttemptsLoading } = useQuery({
@@ -172,11 +164,13 @@ const attemptsMap = computed(() => {
   return map
 })
 
-const isLoading = computed(() => isQuizzesLoading.value || isAttemptsLoading.value)
+const isLoading = computed(() => isQuizzesLoading.value)
 
 // Sync URL with active subject
 watch(activeSubject, (newVal) => {
   pagination.value.page = 1
+  pagination.value.cursor = null
+  pagination.value.history = [null]
   if (newVal === 'All') {
     router.replace({ path: '/quizzes' })
   } else {
@@ -193,41 +187,19 @@ watch(() => route.query.subject, (newSubject) => {
 
 // Removed old manual fetching logic
 const nextPage = () => {
-  if (pagination.value.page < pagination.value.totalPages) {
+  if (pagination.value.page < totalPages.value && quizzesResponse.value?.nextCursor) {
+    pagination.value.history.push(pagination.value.cursor)
+    pagination.value.cursor = quizzesResponse.value.nextCursor
     pagination.value.page++
   }
 }
 
 const prevPage = () => {
   if (pagination.value.page > 1) {
+    pagination.value.cursor = pagination.value.history.pop()
     pagination.value.page--
   }
 }
-
-const goToPage = (page) => {
-  if (page !== pagination.value.page) {
-    pagination.value.page = page
-  }
-}
-
-const visiblePages = computed(() => {
-  const current = pagination.value.page
-  const total = pagination.value.totalPages
-  
-  if (total <= 5) {
-    return Array.from({ length: total }, (_, i) => i + 1)
-  }
-  
-  if (current <= 3) {
-    return [1, 2, 3, 4, 5]
-  }
-  
-  if (current >= total - 2) {
-    return [total - 4, total - 3, total - 2, total - 1, total]
-  }
-  
-  return [current - 2, current - 1, current, current + 1, current + 2]
-})
 
 const filteredQuizzes = computed(() => {
   return quizzes.value.filter(quiz => {
