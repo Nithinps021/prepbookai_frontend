@@ -102,9 +102,12 @@ export const api = {
   },
 
   // English Module Routes (Public)
-  async getQuizzes(subject = null, page = 1, limit = 15) {
+  async getQuizzes(subject = null, cursor = null, limit = 15) {
     const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-    let url = `${baseUrl}/english/quizzes?page=${page}&limit=${limit}`; 
+    let url = `${baseUrl}/english/quizzes?limit=${limit}`; 
+    if (cursor) {
+      url += `&cursor=${cursor}`;
+    } 
     
     const response = await fetchWithAuth(url);
     if (!response.ok) {
