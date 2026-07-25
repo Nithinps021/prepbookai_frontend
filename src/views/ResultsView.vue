@@ -1,10 +1,22 @@
 <template>
-  <div class="h-screen bg-background overflow-hidden w-full flex">
+  <div class="h-screen bg-background overflow-hidden w-full flex relative">
+    <!-- Mobile overlay -->
+    <div 
+      v-if="isHistorySidebarOpen" 
+      class="absolute inset-0 bg-black/40 z-40 md:hidden backdrop-blur-sm transition-opacity" 
+      @click="isHistorySidebarOpen = false"
+    ></div>
     
     <!-- LEFT: History Sidebar -->
-    <div class="w-64 md:w-80 border-r border-border bg-black/5 dark:bg-white/5 flex flex-col shrink-0">
-      <div class="p-4 border-b border-border bg-surface shrink-0">
+    <div 
+      class="flex-col w-64 sm:w-72 md:w-80 border-r border-border bg-surface md:bg-black/5 dark:md:bg-white/5 shrink-0 transition-transform duration-300 z-50 h-full shadow-2xl md:shadow-none absolute md:relative left-0 top-0"
+      :class="isHistorySidebarOpen ? 'flex translate-x-0' : 'hidden md:flex -translate-x-full md:translate-x-0'"
+    >
+      <div class="p-4 border-b border-border bg-surface shrink-0 flex justify-between items-center">
         <h3 class="font-bold flex items-center text-text-primary"><History class="w-4 h-4 mr-2" /> Attempt History</h3>
+        <button class="md:hidden p-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 text-text-muted" @click="isHistorySidebarOpen = false">
+          <X class="w-5 h-5" />
+        </button>
       </div>
       
       <!-- History Skeleton -->
@@ -75,6 +87,9 @@
               </div>
               
               <div class="flex flex-wrap gap-3 shrink-0">
+                <Button variant="secondary" class="md:hidden" @click="isHistorySidebarOpen = true">
+                  <History class="w-4 h-4 mr-2" /> All Attempts
+                </Button>
                 <Button variant="secondary" @click="$router.push('/quizzes')">
                   <Library class="w-4 h-4 mr-2" /> All Quizzes
                 </Button>
@@ -198,7 +213,7 @@ import { api } from '@/mock/api'
 import confetti from 'canvas-confetti'
 import Badge from '@/components/ui/Badge.vue'
 import Button from '@/components/ui/Button.vue'
-import { CheckCircle, XCircle, MinusCircle, Library, RotateCcw, Clock, History, Eye, ListOrdered, AlertCircle } from 'lucide-vue-next'
+import { CheckCircle, XCircle, MinusCircle, Library, RotateCcw, Clock, History, Eye, ListOrdered, AlertCircle, Menu, X } from 'lucide-vue-next'
 
 const router = useRouter()
 const route = useRoute()
@@ -207,6 +222,7 @@ const quizStore = useQuizStore()
 const score = computed(() => quizStore.calculateScore)
 const isInitialLoad = ref(true)
 const currentAttemptId = ref(route.query.attemptId || null)
+const isHistorySidebarOpen = ref(false)
 
 const { data: attemptsList, isPending: isAttemptsLoading } = useQuery({
   queryKey: ['examAttempts', computed(() => route.params.id)],
@@ -313,9 +329,13 @@ watch([quizData, questionsData, attemptData], ([quiz, questions, attempt]) => {
 })
 
 const loadAttemptData = (attemptId) => {
-  if (String(currentAttemptId.value) === String(attemptId)) return;
+  if (String(currentAttemptId.value) === String(attemptId)) {
+    isHistorySidebarOpen.value = false;
+    return;
+  }
   currentAttemptId.value = String(attemptId);
   router.replace({ query: { ...route.query, attemptId: String(attemptId) } });
+  isHistorySidebarOpen.value = false;
 }
 
 onMounted(() => {
