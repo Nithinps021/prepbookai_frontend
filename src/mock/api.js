@@ -1,3 +1,5 @@
+import JSONBig from 'json-bigint';
+const JSONBigString = JSONBig({ storeAsString: true });
 import { fetchWithAuth } from './apiClient'
 
 // Helper to simulate network delay (useful for mocks, kept for backward compatibility if needed)
@@ -20,7 +22,7 @@ export const api = {
       throw new Error(`Failed to register user: ${err}`);
     }
     
-    return await response.json();
+    return JSONBigString.parse(await response.text());
   },
 
   async submitQuiz(quiz, questions, answers, timeTaken, timeSpent = {}) {
@@ -74,7 +76,7 @@ export const api = {
       throw new Error(`Failed to submit quiz: ${err}`);
     }
     
-    return await response.json();
+    return JSONBigString.parse(await response.text());
   },
 
   async getExamAttempts(quizType = null, quizDocId = null) {
@@ -88,7 +90,7 @@ export const api = {
       const err = await response.text();
       throw new Error(`Failed to fetch exam attempts: ${err}`);
     }
-    return await response.json();
+    return JSONBigString.parse(await response.text());
   },
 
   async getExamAttemptDetail(attemptId) {
@@ -98,7 +100,7 @@ export const api = {
       const err = await response.text();
       throw new Error(`Failed to fetch exam attempt detail: ${err}`);
     }
-    return await response.json();
+    return JSONBigString.parse(await response.text());
   },
 
   // English Module Routes (Public)
@@ -113,7 +115,7 @@ export const api = {
     if (!response.ok) {
       throw new Error('Failed to fetch quizzes');
     }
-    return await response.json();
+    return JSONBigString.parse(await response.text());
   },
 
   async getQuiz(id, subject) {
@@ -122,7 +124,7 @@ export const api = {
     if (!response.ok) {
       throw new Error('Quiz not found');
     }
-    return await response.json();
+    return JSONBigString.parse(await response.text());
   },
 
   async getQuestions(quizId, subject) {
@@ -131,7 +133,7 @@ export const api = {
     if (!response.ok) {
       throw new Error('Failed to fetch questions');
     }
-    const data = await response.json();
+    const data = JSONBigString.parse(await response.text());
     return data.map((q, idx) => ({ ...q, id: q.id || `q-${idx}` }));
   }
 }
