@@ -66,6 +66,7 @@
         :key="quiz.id" 
         :quiz="quiz"
         :attempt="attemptsMap[quiz.id]"
+        :is-attempts-loading="isAttemptsLoading"
         @click="openQuizModal(quiz)"
       />
     </div>
@@ -163,7 +164,7 @@ const attemptsMap = computed(() => {
   return map
 })
 
-const isLoading = computed(() => isQuizzesLoading.value || isAttemptsLoading.value)
+const isLoading = computed(() => isQuizzesLoading.value)
 
 // Sync URL with active subject
 watch(activeSubject, (newVal) => {
